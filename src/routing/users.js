@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controller/user');
-router.get('/users/:id/:name', userController.getAllUser)
+const {signUpValidation} = require('../helpers/validation');
+// register
+router.post('/register', signUpValidation, userController.register)
 
 module.exports =  router;
