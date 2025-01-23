@@ -7,6 +7,10 @@ const {
 } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const db = require('../config/config');
+const {
+    PrismaClient
+} = require('@prisma/client');
+const prisma = new PrismaClient();
 // register user
 const register = (req, res) => {
     const error = validationResult(req);
@@ -25,9 +29,9 @@ const register = (req, res) => {
     }
     // console.log(req.body.name);
     db.query(
-        `SELECT * FROM users WHERE LOWER(email) = LOWER(${db.escape(req.body.email)})`,
+        `SELECT * FROM user WHERE LOWER(email) = LOWER(${db.escape(req.body.email)})`,
         (err, result) => {
-          
+
             if (result && result.length) {
                 return res.status(409).send({
                     msg: "user already registered",
@@ -39,15 +43,14 @@ const register = (req, res) => {
                         return res.status(500).send({
                             msg: err
                         })
-                    }
-                     else {
+                    } else {
                         // return res.status(500).send({
                         //     msg:err
                         // })
                         // console.log(hash)
                         db.query(
 
-                            `INSERT INTO users (name, email, password) VALUES (${db.escape(req.body.name)}, ${db.escape(req.body.email)}, ${db.escape(hash)})`,
+                            `INSERT INTO user (name, email, password) VALUES (${db.escape(req.body.name)}, ${db.escape(req.body.email)}, ${db.escape(hash)})`,
                             (err, result) => {
                                 console.log(result)
                                 if (err) {
@@ -70,34 +73,134 @@ const register = (req, res) => {
         }
     )
 }
-const getAllUser = (req, res, next) => {
-    // const {
-    //     id
-    // } = req.params;
+const addMahasiswa = async (req, res, next) => {
     const {
-        name
-    } = req.params;
-
+        user_id,
+        semester,
+        nim,
+        tanggal_lahir,
+        tempat_lahir,
+        no_hp
+    } = req.body;
+    console.log(req.body)
     try {
-        const users = geti();
-        console.log(JSON.stringify(users))
-        res.status(200).json({
-            "success": true,
-            "data": users,
-            "req": name
-        })
+
+
+        if (!user_id || !semester || !nim || !tanggal_lahir || !tempat_lahir || !no_hp) {
+            return res.status(400).json({
+                error: 'Semua data harus diisi'
+            });
+        }
+
+        // mode 2 bre
+        const [user, exitingdataMahasiswa] = await Promise.all([
+            prisma.user.findUnique({
+                where: {
+                    id: user_id
+                }
+            }),
+            prisma.mahasiswa.findUnique({
+                where: {
+                    user_id
+                }
+            })
+        ]);
+        if (!user) {
+            return res.status(404).json({
+                error: "Data mahasiswa id tersebut tidak ditemukan"
+            })
+        }
+        if (exitingdataMahasiswa) {
+            return res.status(400).json({
+                error: "data mahasiswa sudah ada"
+            })
+        }
+
+        const mahasiswa = await prisma.mahasiswa.create({
+            data: {
+                user_id,
+                semester,
+                tanggal_lahir,
+                no_hp,
+                tempat_lahir,
+                nim
+            }
+        });
+        res.status(200).json(mahasiswa)
+
+
 
     } catch (error) {
+        console.error('Error adding mahasiswa:', error);
         res.status(500).json({
-            "success": false,
-            "data": []
-        })
+            error: 'Terjadi kesalahan pada server'
+        });
 
     }
-}
+    
 
+
+    
+}
+const getMahasiwa = async (req, res) => {
+
+    console.log("ready")
+
+    const user = await prisma.user.findMany({
+        include:{
+            mahasiswa : {
+                select : {
+                    nim : true
+
+                }
+            }
+        }
+    });
+    for (var e in user){
+
+    }
+    const whereU = await prisma.user.findFirst({
+        where :{
+            name : "Rouf"
+        }
+    })
+    if(whereU.image === null){
+
+        console.log("image kosong")
+    }
+
+
+
+}
 module.exports = {
-    getAllUser,
-    register
+    register,
+    addMahasiswa,
+    getMahasiwa
 
 }
+
+
+// mode 1 bree
+// const a = await prisma.user.findUnique({
+//     where: {
+//         id: user_id
+//     }
+// });
+// const b = await prisma.mahasiswa.findUnique({
+//     where: {
+//         user_id
+//     }
+// })
+// if (!a) {
+//     return res.status(404).json({
+//         error: 'data mahasiswa id tersebut tidak ditemukan'
+//     })
+// }
+// if (b) {
+//     return res.status(400).json({
+//         error: 'data mahasiswa sudah ada'
+//     })
+// }
+
+// save data bre
+// console.log(a); 
