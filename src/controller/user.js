@@ -10,6 +10,9 @@ const db = require('../config/config');
 const {
     PrismaClient
 } = require('@prisma/client');
+const {
+    json
+} = require('body-parser');
 const prisma = new PrismaClient();
 // register user
 const register = (req, res) => {
@@ -137,37 +140,32 @@ const addMahasiswa = async (req, res, next) => {
         });
 
     }
-    
 
 
-    
+
+
 }
 const getMahasiwa = async (req, res) => {
 
-    console.log("ready")
-
-    const user = await prisma.user.findMany({
-        include:{
-            mahasiswa : {
-                select : {
-                    nim : true
-
-                }
-            }
+    const {id} = req.params;
+    // console.log(id)
+    const user = await prisma.user.findUnique({
+        where: {
+            id: parseInt(id)
+        },
+        include: {
+            mahasiswa: true
         }
     });
-    for (var e in user){
-
+    if(!user){
+        return res.status(404).json({
+            message : "user tidak ditemukan"
+        })
     }
-    const whereU = await prisma.user.findFirst({
-        where :{
-            name : "Rouf"
-        }
+    return res.json({
+        data: user,
     })
-    if(whereU.image === null){
 
-        console.log("image kosong")
-    }
 
 
 
