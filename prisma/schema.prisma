@@ -13,80 +13,81 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User{
-  id          Int       @id @default(autoincrement())
-  name String
-  email String @unique
-  password String
-  image String?
-  is_admin Int @default(0)
-  is_verified Int       @default(0)
+model User {
+  id          Int     @id @default(autoincrement())
+  name        String
+  email       String  @unique
+  password    String
+  image       String?
+  is_admin    Int     @default(0)
+  is_verified Int     @default(0)
 
-  last_login  DateTime? // Nullable
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  mahasiswa Mahasiswa?
+  last_login DateTime? // Nullable
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  mahasiswa  Mahasiswa?
 }
 
 model Mahasiswa {
-  id   Int     @id @default(autoincrement()) 
-  user_id Int @unique
-  user User @relation(fields:[user_id], references:[id])
-  semester Int
-  nim Int 
+  id            Int      @id @default(autoincrement())
+  user_id       Int      @unique
+  user          User     @relation(fields: [user_id], references: [id])
+  semester      Int
+  nim           Int
   tanggal_lahir String
-  tempat_lahir String
-  no_hp Int
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
-
+  tempat_lahir  String
+  no_hp         Int
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }
+
 model Seat {
-  id Int @id @default(autoincrement())
-  room_id Int
-  row String 
-  number Int 
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
-
+  id         Int      @id @default(autoincrement())
+  room_id    Int
+  row        String
+  number     Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
+
 model Room {
-  id Int @id @default(autoincrement())
-  name String
+  id         Int      @id @default(autoincrement())
+  name       String
   total_seat Int
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  Waktu      Waktu[]
 }
-
 
 model Movie {
-  id Int @id @default(autoincrement()) 
+  id    Int    @id @default(autoincrement())
   genre String
   judul String
-  time_id Int
-  durasi String
-  showTime DateTime
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
 
+  durasi     String
+  showTime   DateTime
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  waktu      Waktu[]
 }
-model Time {
-  id Int @id @default(autoincrement())
-  time DateTime
-  movie_id Int
-  room_id Int
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
+
+model Waktu {
+  id         Int      @id @default(autoincrement())
+  time       DateTime
+  movie_id   Int
+  room_id    Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  movies     Movie    @relation(fields: [movie_id], references: [id])
+  rooms      Room     @relation(fields: [room_id], references: [id])
 }
+
 model Booking {
-  id Int @id @default(autoincrement())
-  user_id Int 
-  seat_id Int
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  seat_id      Int
   booking_date DateTime
-  time_id Int
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
+  time_id      Int
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 }
