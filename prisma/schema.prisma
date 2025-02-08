@@ -42,3 +42,51 @@ model Mahasiswa {
 
 
 }
+model Seat {
+  id Int @id @default(autoincrement())
+  room_id Int
+  row String 
+  number Int 
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+
+}
+model Room {
+  id Int @id @default(autoincrement())
+  name String
+  total_seat Int
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+}
+
+
+model Movie {
+  id Int @id @default(autoincrement()) 
+  genre String
+  judul String
+  time_id Int
+  durasi String
+  showTime DateTime
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+}
+model Time {
+  id Int @id @default(autoincrement())
+  time DateTime
+  movie_id Int
+  room_id Int
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+}
+model Booking {
+  id Int @id @default(autoincrement())
+  user_id Int 
+  seat_id Int
+  booking_date DateTime
+  time_id Int
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+}

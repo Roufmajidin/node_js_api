@@ -1,7 +1,5 @@
 // const express = require('express');
-const {
-    geti
-} = require('../models/user_model');
+const {geti} = require('../models/user_model');
 const {
     validationResult
 } = require('express-validator');
