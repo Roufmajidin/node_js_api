@@ -48,6 +48,8 @@ model Seat {
   number     Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+
+  Booking Booking[]
 }
 
 model Room {
@@ -72,14 +74,15 @@ model Movie {
 }
 
 model Waktu {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   time       DateTime
   movie_id   Int
   room_id    Int
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  movies     Movie    @relation(fields: [movie_id], references: [id])
-  rooms      Room     @relation(fields: [room_id], references: [id])
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  movies     Movie     @relation(fields: [movie_id], references: [id])
+  rooms      Room      @relation(fields: [room_id], references: [id])
+  Booking    Booking[]
 }
 
 model Booking {
@@ -87,7 +90,9 @@ model Booking {
   user_id      Int
   seat_id      Int
   booking_date DateTime
-  time_id      Int
+  waktu_id     Int
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+  seats        Seat     @relation(fields: [seat_id], references: [id])
+  waktu        Waktu    @relation(fields: [waktu_id], references: [id])
 }
