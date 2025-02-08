@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const usersRoute = require('./routing/users')
+const moviesRoute = require('./routing/general_routing');
 const app = express();
 const cors = require('cors');
 require('./config/config.js')
@@ -13,6 +14,7 @@ app.use(userMiddleware)
 app.use(express.json())
 
 app.use('/api', usersRoute)
+app.use('/movies', moviesRoute)
 
 app.listen(4000, ()=>{
     console.log('Server is running on port 4000');
