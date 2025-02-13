@@ -1,58 +1,160 @@
 const express = require('express');
-const { PrismaClient} = require('@prisma/client');
-const { json} = require('body-parser')
+const {
+    PrismaClient
+} = require('@prisma/client');
+const {
+    json
+} = require('body-parser')
 const prisma = new PrismaClient();
 // TODO : getAll Movies
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
 const getMovies = async (req, res) => {
     console.log('ok')
     try {
+
         const mov = await prisma.waktu.findMany({
             include: {
                 movies: true,
-                rooms: true 
+                rooms: true
             }
         })
-        res.json(mov)
+        // Mengelompokkan berdasarkan judul film
+        const groupedMovies = mov.reduce((acc, item) => {
+            const key = item.movies.judul;
+            if (!acc[key]) {
+                acc[key] = {
+                    movies: item.movies,
+                    waktu: [
+
+                    ]
+                };
+            }
+            acc[key].waktu.push({
+                id: item.id,
+                waktu: dayjs.utc(item.time).tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss"),
+                room_id: item.room_id,
+                movie_id: item.movie_id,
+                studio: item.rooms.name,
+                status: item.status  ,
+            });
+
+
+            return acc;
+        }, {});
+
+        const formattedMovies = Object.values(groupedMovies);
+
+        res.json(formattedMovies);
     } catch (error) {
         console.log(error)
         res.status(400).json({
-            error:error
+            error: error
         })
-        
+
     }
 }
 // TODO : getMovie dan tampilkan list tanggal
-const getMovieName = async (req, res)=>{
-    
-    const {name} = req.params;
+const getMovieName = async (req, res) => {
+
+    const {
+        name
+    } = req.params;
     try {
-       
+
         const a = await prisma.movie.findFirst({
-            where:{
+            where: {
                 judul: name
             }
         });
         const waktu = await prisma.waktu.findMany({
-            where:{
-                movie_id : parseInt(a.id)
+            where: {
+                movie_id: parseInt(a.id)
             }
         })
-      
-      console.log((waktu))
+
+        console.log((waktu))
         res.json({
-            data :{
-                movie : a,
-                waktu : waktu,
+            data: {
+                movie: a,
+                waktu: waktu,
 
             }
         })
-        
+
     } catch (error) {
         res.status(400).json({
-            error:error
+            error: error
         })
     }
+
+}
+// ubah film nonaktif
+const nonAktifstudios = async (req, res) => {
+    const {
+        ids
+    } = req.body
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({
+            message: "ID tidak valid atau kosong"
+        });
+    }
+    const studios = await prisma.waktu.findMany({
+        where: {
+            id: {
+                in: ids
+            }
+        }
+    });
+    console.log("Data dari database:", studios); // Log hasil query
+
+    if (studios.length === 0) {
+        return res.status(404).json({
+            message: "Studio tidak ditemukan"
+        });
+    }
+
+    const updatedStudios = await Promise.all(
+        studios.map(async (studio) => {
+            const newStatus = studio.status === 0 ? 1 : 0;
+            console.log(`Mengupdate ID ${studio.id}: ${studio.status} → ${newStatus}`);
+
+            return await prisma.waktu.update({
+                where: {
+                    id: studio.id
+                },
+                data: {
+                    status: newStatus
+                }
+            });
+        })
+    );
+
+    return res.json({
+        message: "Studio berhasil dinonaktifkan",
+        totalUpdated: updatedStudios.count
+    });
+
+}
+const generateseat = (req) => {
+    const rows = ["A", "B", "C", "D", "E", "F", "G"]
+    const seat = [];
+    for (const row of rows) {
+        for (let number = 1; number <= 9; number++) {
+            seat.push({
+                room_id: req,
+                row,
+                number,
+            });
+        }
+    }
+    return prisma.seat.createMany({
+        data: seat
+    });
 
 }
 // {
@@ -90,37 +192,81 @@ const getMovieName = async (req, res)=>{
 //TODO :: get seat berdasarkan movie dan waktu terpilihh 
 // misalnya film denan movie_id == xx dan waktu yang tertera pada movie tersebut 
 // get seat where room_id dan waktu (time) oada tabel waktu
-const getSeat  = async (req, res) =>{
-   try {
-    const {roomId, waktuId} = req.params;
-    const seat = await prisma.seat.findMany({
-        where:{
-            room_id : parseInt(roomId)
+// 
+const getRoom = async (req, res) => {
+    const rooms = await prisma.room.findMany();
+    const seats = await prisma.seat.findMany({
+        select: {
+            room_id: true
         },
-        include:{
-            Booking:{
-                where :{waktu_id :parseInt(waktuId)}
+        distinct: ['room_id']
+    });
+
+    const roomIdsWithSeats = seats.map(seat => seat.room_id);
+
+    const roomsWithSeatStatus = rooms.map(room => ({
+        ...room,
+        can_generate_seat: !roomIdsWithSeats.includes(room.id) // true jika seat belum ada
+    }));
+
+    res.status(200).json(roomsWithSeatStatus);
+
+
+
+}
+const getSeat = async (req, res) => {
+    try {
+        const {
+            roomId,
+            waktuId
+        } = req.params;
+        const seat = await prisma.seat.findMany({
+            where: {
+                room_id: parseInt(roomId)
+            },
+            include: {
+                Booking: {
+                    where: {
+                        waktu_id: parseInt(waktuId)
+                    }
+                }
             }
-        }
-    })
-    console.log(seat)
-    return res.json({
-        data : {
-            total_seat : seat.length,
-            seat :seat,
-        }
-    })
-    
-   } catch (error) {
-    return res.status(404).json({ error: error})
-    
-   }
+        })
+        console.log(seat)
+        return res.json({
+            data: {
+                total_seat: seat.length,
+                seat: seat,
+            }
+        })
+
+    } catch (error) {
+        return res.status(404).json({
+            error: error
+        })
+
+    }
+}
+//TODO :: get seat create/sstore seat
+// misalnya movie xx {tanggal& waktu terpilih}
+const storeSeat = (req, res) => {
+    // terima body
+    const {
+        userId,
+        seatId,
+        bookingDate,
+        waktuMovie
+    } = req.body;
+
 }
 
 module.exports = {
 
     getMovies,
     getMovieName,
-    getSeat
+    getSeat,
+    generateseat,
+    getRoom,
+    nonAktifstudios
 
 }
