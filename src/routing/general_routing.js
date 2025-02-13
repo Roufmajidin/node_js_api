@@ -18,7 +18,6 @@ router.put('/saveEdit', controller.editMovie)
 router.get('/getRoom', controller.getRoom)
 router.get("/create", async (req, res) => {
     try {
-        // 1️⃣ Tambah Room
         const id = Math.floor(Math.random() * 1000000);
         const room = await prisma.room.create({
             data: {
@@ -28,10 +27,8 @@ router.get("/create", async (req, res) => {
             },
         });
 
-        // 2️⃣ Generate Seat
         await controller.generateseat(id);
 
-        // 3️⃣ Tambah Movie
         const movie = await prisma.movie.create({
             data: {
                 genre: "Action",
@@ -45,7 +42,6 @@ router.get("/create", async (req, res) => {
             },
         });
 
-        // 4️⃣ Tambah Waktu Tayang
         const waktu = await prisma.waktu.create({
             data: {
                 time: new Date(),
