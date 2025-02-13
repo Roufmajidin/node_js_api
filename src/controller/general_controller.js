@@ -10,9 +10,13 @@ const prisma = new PrismaClient();
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
+const {
+    parse
+} = require('dotenv');
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
 const getMovies = async (req, res) => {
     console.log('ok')
     try {
@@ -23,15 +27,13 @@ const getMovies = async (req, res) => {
                 rooms: true
             }
         })
-        // Mengelompokkan berdasarkan judul film
+        // kelompokkin dulu lah
         const groupedMovies = mov.reduce((acc, item) => {
             const key = item.movies.judul;
             if (!acc[key]) {
                 acc[key] = {
                     movies: item.movies,
-                    waktu: [
-
-                    ]
+                    waktu: []
                 };
             }
             acc[key].waktu.push({
@@ -40,15 +42,12 @@ const getMovies = async (req, res) => {
                 room_id: item.room_id,
                 movie_id: item.movie_id,
                 studio: item.rooms.name,
-                status: item.status  ,
+                status: item.status,
             });
-
 
             return acc;
         }, {});
-
         const formattedMovies = Object.values(groupedMovies);
-
         res.json(formattedMovies);
     } catch (error) {
         console.log(error)
@@ -57,6 +56,99 @@ const getMovies = async (req, res) => {
         })
 
     }
+}
+// TODOD : Edit Movie
+const editMovie = async (req, res) => {
+    const {
+        movie_name,
+        idm,
+        genre,
+        studio,
+        dimulai,
+        durasi,
+        tahun,
+        gambar,
+        sinopsis,
+        actor_u,
+        status,
+        selectedStudios,
+    } = req.body
+    const data = {
+        id: parseInt(idm),
+        movie_name,
+        movie_name,
+        tahun: tahun,
+        sinopsis: sinopsis,
+        durasi: durasi,
+        gambar: gambar,
+        genre: genre,
+        studio: studio,
+        actor_u: actor_u
+    }
+    const updatedMov = await prisma.movie.updateMany({
+        where: {
+            id: idm
+        },
+        data: {
+            genre: genre,
+            judul: movie_name,
+            // movie_name,
+            durasi: durasi,
+            showTime: new Date(),
+            tahun: tahun,
+            actor_u: actor_u,
+            gambar: gambar,
+            sinopsis: sinopsis,
+            tahun: tahun
+            // studio: studio,
+
+        }
+    })
+    if (updatedMov.count === 0) {
+        return res.status.json({
+            status: "updated failed"
+        })
+    }
+    const studioIds = studio.map(s => s.id);
+    const existingRecords = await prisma.waktu.findMany({
+        where: {
+            id: {
+                in: studio.map(s => s.id)
+            }
+        }
+    });
+    console.log("Data sebelum update:", existingRecords);
+    const a = await Promise.all(studio.map(async (s) => {
+        const dataUpdated ={
+            // status: 0
+            movie_id: s.movie_id,
+            room_id: s.room_id,
+            time: new Date(s.waktu),
+            status: selectedStudios.length > 0 ? (s.status === 0 ? 1 : 0) : s.status // Pastikan tetap Int
+
+
+        }
+        if (selectedStudios.length > 0) {
+            dataUpdated.status = s.status === 0 ? 1 : 0;
+        }
+        return await prisma.waktu.updateMany({
+            where: { id: s.id },
+            data: dataUpdated
+        });
+    }))
+
+    console.log(" data studio:", studio);
+    console.log(" data Ids:", studioIds);
+    console.log(" Data setelah update:", a);
+    // console.log(a)
+    return res.status(200).json({
+        status:200,
+        message: "berhasil updated data",
+        data: {
+            movie: updatedMov,
+            jadwal_updated: a
+        }
+    })
 }
 // TODO : getMovie dan tampilkan list tanggal
 const getMovieName = async (req, res) => {
@@ -267,6 +359,7 @@ module.exports = {
     getSeat,
     generateseat,
     getRoom,
-    nonAktifstudios
+    nonAktifstudios,
+    editMovie
 
 }

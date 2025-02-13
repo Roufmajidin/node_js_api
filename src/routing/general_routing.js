@@ -13,6 +13,7 @@ router.get('/movies', controller.getMovies)
 router.get('/movies/:name', controller.getMovieName)
 router.get('/seats/:roomId/:waktuId', controller.getSeat)
 router.put('/nonaktif-studios', controller.nonAktifstudios)
+router.put('/saveEdit', controller.editMovie)
 // dummy data 
 router.get('/getRoom', controller.getRoom)
 router.get("/create", async (req, res) => {
