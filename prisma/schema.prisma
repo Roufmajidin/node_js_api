@@ -65,7 +65,10 @@ model Movie {
   id    Int    @id @default(autoincrement())
   genre String
   judul String
-
+  sinopsis String 
+  gambar String?
+  tahun String
+  actor_u String
   durasi     String
   showTime   DateTime
   created_at DateTime @default(now())
@@ -78,6 +81,7 @@ model Waktu {
   time       DateTime
   movie_id   Int
   room_id    Int
+  status Int @default(0)
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
   movies     Movie     @relation(fields: [movie_id], references: [id])
@@ -89,6 +93,9 @@ model Booking {
   id           Int      @id @default(autoincrement())
   user_id      Int
   seat_id      Int
+  method_payment String?
+  qr_code String ?
+  expired Int @default(1)
   booking_date DateTime
   waktu_id     Int
   created_at   DateTime @default(now())
