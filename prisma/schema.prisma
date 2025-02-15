@@ -67,9 +67,9 @@ model Movie {
   judul String
   sinopsis String 
   gambar String?
-  tahun String
+  tahun Int
   actor_u String
-  durasi     String
+  durasi     Int
   showTime   DateTime
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
