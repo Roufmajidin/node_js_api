@@ -13,49 +13,94 @@ const timezone = require('dayjs/plugin/timezone');
 const {
     parse
 } = require('dotenv');
-
+const multer = require('multer');
+const path = require('path')
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const getMovies = async (req, res) => {
     console.log('ok')
     try {
-
-        const mov = await prisma.waktu.findMany({
+        const movies = await prisma.movie.findMany({
             include: {
-                movies: true,
-                rooms: true
+                waktu: { 
+                    include: {
+                        rooms: true
+                    }
+                }
             }
-        })
-        // kelompokkin dulu lah
-        const groupedMovies = mov.reduce((acc, item) => {
-            const key = item.movies.judul;
-            if (!acc[key]) {
-                acc[key] = {
-                    movies: item.movies,
-                    waktu: []
-                };
-            }
-            acc[key].waktu.push({
-                id: item.id,
-                waktu: dayjs.utc(item.time).tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss"),
-                room_id: item.room_id,
-                movie_id: item.movie_id,
-                studio: item.rooms.name,
-                status: item.status,
-            });
+        });
 
-            return acc;
-        }, {});
-        const formattedMovies = Object.values(groupedMovies);
+        const formattedMovies = movies.map(movie => ({
+            movies: movie,
+            waktu: movie.waktu.map(waktuItem => ({
+                id: waktuItem.id,
+                waktu: dayjs.utc(waktuItem.time).tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss"),
+                room_id: waktuItem.room_id,
+                movie_id: waktuItem.movie_id,
+                studio: waktuItem.rooms ?.name || "No Room",
+                status: waktuItem.status,
+            }))
+        }));
+
         res.json(formattedMovies);
     } catch (error) {
-        console.log(error)
+        console.error(error);
         res.status(400).json({
-            error: error
+            error: error.message
+        });
+    }
+}
+// strage config
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "storage/uploads/")
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+})
+const upload = multer({
+    storage
+})
+// TODO AddMovie 
+const addMovie = async (req, res) => {
+    // console.log("gambar")
+    const data = req.body
+    try {
+
+        // console.log("Request Body:", data);
+        // console.log("Uploaded File:", req.file);
+
+        // const gambar = req.body.gambar ? `/storage/uploads/${req.body.gambar}` : null;
+        const sm = await prisma.movie.create({
+            data: {
+                judul: data.judul,
+                genre: data.genre,
+                durasi: parseInt(data.durasi),
+                showTime: new Date(),
+                actor_u: data.actor_u,
+                gambar: req.file ? `/storage/uploads/${req.file.filename}` : null,
+                sinopsis: data.sinopsis,
+                tahun: parseInt(data.tahun)
+
+            }
+        })
+        console.log(sm)
+
+        res.json({
+            message: "Movie berhasil ditambahkan",
+            // data: data
+        })
+
+    } catch (error) {
+        res.json({
+            error: error.message
         })
 
     }
+
+
 }
 // TODOD : Edit Movie
 const editMovie = async (req, res) => {
@@ -72,34 +117,28 @@ const editMovie = async (req, res) => {
         actor_u,
         status,
         selectedStudios,
-    } = req.body
-    const data = {
-        id: parseInt(idm),
-        movie_name,
-        movie_name,
-        tahun: tahun,
-        sinopsis: sinopsis,
-        durasi: durasi,
-        gambar: gambar,
-        genre: genre,
-        studio: studio,
-        actor_u: actor_u
-    }
+    } = req.body;
+    const aa = req.body;
+
+
     const updatedMov = await prisma.movie.updateMany({
         where: {
-            id: idm
+            id: parseInt(aa.id)
         },
         data: {
-            genre: genre,
-            judul: movie_name,
+            genre: aa.genre,
+            judul: aa.movie_name,
             // movie_name,
-            durasi: durasi,
+            durasi: parseInt(aa.durasi),
             showTime: new Date(),
-            tahun: tahun,
-            actor_u: actor_u,
-            gambar: gambar,
-            sinopsis: sinopsis,
-            tahun: tahun
+            tahun: aa.tahun,
+            actor_u: aa.actor_u,
+            gambar: req.file ?
+                `/storage/uploads/${req.file.filename}` :
+                aa.gambarLama,
+            
+            sinopsis: aa.sinopsis,
+            tahun: parseInt(aa.tahun)
             // studio: studio,
 
         }
@@ -109,44 +148,55 @@ const editMovie = async (req, res) => {
             status: "updated failed"
         })
     }
-    const studioIds = studio.map(s => s.id);
-    const existingRecords = await prisma.waktu.findMany({
-        where: {
-            id: {
-                in: studio.map(s => s.id)
-            }
-        }
-    });
-    console.log("Data sebelum update:", existingRecords);
-    const a = await Promise.all(studio.map(async (s) => {
-        const dataUpdated ={
-            // status: 0
-            movie_id: s.movie_id,
-            room_id: s.room_id,
-            time: new Date(s.waktu),
-            status: selectedStudios.length > 0 ? (s.status === 0 ? 1 : 0) : s.status // Pastikan tetap Int
+    // const studioIds = studio.map(s => s.id);
+    // const existingRecords = await prisma.waktu.findMany({
+    //     where: {
+    //         id: {
+    //             in: studio.map(s => s.id)
+    //         }
+    //     }
+    // });
+    // console.log("Data sebelum update:", existingRecords);
+    // const a = await Promise.all(studio.map(async (s) => {
+    //     const isSelected = selectedStudios.includes(s.id);
+
+    //     const dataUpdated = {
+    //         // status: 0
+    //         movie_id: s.movie_id,
+    //         room_id: s.room_id,
+    //         time: new Date(s.waktu),
+    //         status: isSelected === true ? 1 : 0
 
 
-        }
-        if (selectedStudios.length > 0) {
-            dataUpdated.status = s.status === 0 ? 1 : 0;
-        }
-        return await prisma.waktu.updateMany({
-            where: { id: s.id },
-            data: dataUpdated
-        });
-    }))
+    //     }
+    //     // if (isSelected && s.status === 0) {
+    //     //     // Jika studio dipilih dan status sebelumnya 0, ubah ke 1
+    //     //     dataUpdated.status = 1;
+    //     // } else if (!isSelected && s.status === 1) {
+    //     //     // Jika studio tidak dipilih dan status sebelumnya 1, ubah ke 0
+    //     //     dataUpdated.status = 0;
+    //     // }    
 
-    console.log(" data studio:", studio);
-    console.log(" data Ids:", studioIds);
-    console.log(" Data setelah update:", a);
+    //     console.log(`Updating Studio ID ${s.id} to Status:`, dataUpdated.status);
+
+    //     return await prisma.waktu.updateMany({
+    //         where: {
+    //             id: s.id
+    //         },
+    //         data: dataUpdated
+    //     });
+    // }))
+
+    // console.log(" data studio:", studio);
+    // console.log(" data Ids:", studioIds);
+    // console.log(" Data setelah update:", a);
     // console.log(a)
     return res.status(200).json({
-        status:200,
+        status: 200,
         message: "berhasil updated data",
         data: {
             movie: updatedMov,
-            jadwal_updated: a
+            // jadwal_updated: a
         }
     })
 }
@@ -202,7 +252,7 @@ const nonAktifstudios = async (req, res) => {
             }
         }
     });
-    console.log("Data dari database:", studios); // Log hasil query
+    console.log("Data dari database:", studios); 
 
     if (studios.length === 0) {
         return res.status(404).json({
@@ -298,7 +348,7 @@ const getRoom = async (req, res) => {
 
     const roomsWithSeatStatus = rooms.map(room => ({
         ...room,
-        can_generate_seat: !roomIdsWithSeats.includes(room.id) // true jika seat belum ada
+        can_generate_seat: !roomIdsWithSeats.includes(room.id) 
     }));
 
     res.status(200).json(roomsWithSeatStatus);
@@ -360,6 +410,7 @@ module.exports = {
     generateseat,
     getRoom,
     nonAktifstudios,
-    editMovie
+    editMovie,
+    addMovie
 
 }

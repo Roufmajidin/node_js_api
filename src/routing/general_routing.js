@@ -5,23 +5,37 @@ const {
 } = require('@prisma/client');
 
 const prisma = new PrismaClient();
+const multer = require('multer');
+const path = require('path');
 
 // controller 
 const controller = require('../controller/general_controller')
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadPath = path.join(__dirname, '../storage/uploads/');
+        cb(null, uploadPath);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+const upload = multer({ storage: storage });
 
 router.get('/movies', controller.getMovies)
 router.get('/movies/:name', controller.getMovieName)
 router.get('/seats/:roomId/:waktuId', controller.getSeat)
 router.put('/nonaktif-studios', controller.nonAktifstudios)
-router.put('/saveEdit', controller.editMovie)
+router.put('/saveEdit', upload.single('gambar'), controller.editMovie)
+router.post('/movieadd', upload.single('gambar'), controller.addMovie)
 // dummy data 
+
 router.get('/getRoom', controller.getRoom)
 router.get("/create", async (req, res) => {
     try {
         const id = Math.floor(Math.random() * 1000000);
         const room = await prisma.room.create({
             data: {
-                id: id, 
+                id: id,
                 name: "Studio 1",
                 total_seat: 63, // 7 row x 9 seat
             },
