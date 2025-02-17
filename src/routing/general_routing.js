@@ -27,6 +27,8 @@ router.get('/seats/:roomId/:waktuId', controller.getSeat)
 router.put('/nonaktif-studios', controller.nonAktifstudios)
 router.put('/saveEdit', upload.single('gambar'), controller.editMovie)
 router.post('/movieadd', upload.single('gambar'), controller.addMovie)
+router.post('/room/:idroom', controller.filteringroom)
+
 // dummy data 
 
 router.get('/getRoom', controller.getRoom)
