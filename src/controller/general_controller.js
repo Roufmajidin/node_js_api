@@ -19,6 +19,8 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const getMovies = async (req, res) => {
+    console.log("Server Time:", new Date().toString());
+
     console.log('ok')
     try {
         const movies = await prisma.movie.findMany({
@@ -35,8 +37,12 @@ const getMovies = async (req, res) => {
             movies: movie,
             waktu: movie.waktu.map(waktuItem => ({
                 id: waktuItem.id,
-                waktu: dayjs.utc(waktuItem.time).tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss"),
+                // waktu: dayjs(waktuItem.time).format("YYYY-MM-DD HH:mm:ss"),
+                // waktu:dayjs(waktuItem.time).tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss"),
+                waktu : waktuItem.time,
+                raw_waktu : waktuItem.time,
                 room_id: waktuItem.room_id,
+
                 movie_id: waktuItem.movie_id,
                 studio: waktuItem.rooms ?.name || "No Room",
                 status: waktuItem.status,
@@ -127,7 +133,7 @@ const editMovie = async (req, res) => {
         },
         data: {
             genre: aa.genre,
-            judul: aa.movie_name,
+            judul: aa.judul,
             // movie_name,
             durasi: parseInt(aa.durasi),
             showTime: new Date(),
@@ -330,6 +336,90 @@ const generateseat = (req) => {
 //         ]
 //     }
 // }
+// const filteringroom = async (req, res) => {
+//     const {idroom} = req.params
+//     const data = req.body.waktu;
+//     const a = await prisma.waktu.findMany({
+//         where: {
+//             // room_id: parseInt(idroom),
+//             time : data.waktu
+//         }
+//     });
+//     console.log(data)
+//     return res.json({
+//         data : a
+        
+//     })
+// }
+// TODO : filtering waktu ketika akan dilakukan penambahan waktu pada jam penayangan film
+
+const filteringroom = async (req, res) => {
+    try {
+        const { idroom } = req.params;
+        const { waktu } = req.body;
+        
+        if (isNaN(idroom) || !waktu) {
+            return res.status(400).json({ error: "ID room harus angka dan waktu tidak boleh kosong" });
+        }
+
+        const roomId = parseInt(idroom, 10);
+        
+        let formattedTime = waktu.trim().replace(" ", "T") + ":00.000Z";
+        const newStartTime = new Date(formattedTime);
+
+        if (isNaN(newStartTime.getTime())) {
+            return res.status(400).json({ error: "Format waktu tidak valid" });
+        }
+
+        const waktuList = await prisma.waktu.findMany({
+            where: { room_id: roomId },
+            include: {
+                movies: { select: { durasi: true, judul: true } }
+            }
+        });
+
+        const waktuListWithDurations = waktuList.map((waktuItem) => {
+            const movieDuration = waktuItem.movies.durasi;
+            const startTime = new Date(waktuItem.time); 
+            const endTime = new Date(startTime.getTime() + movieDuration * 60000); 
+
+            return {
+                ...waktuItem,
+                durasi: movieDuration,
+                waktu_akhir: endTime.toISOString(),
+                movieTitle: waktuItem.movies.judul 
+            };
+        });
+
+        for (const scheduled of waktuListWithDurations) {
+            const scheduledStartTime = new Date(scheduled.time);
+            const scheduledEndTime = new Date(scheduled.waktu_akhir);
+            const movieDuration = scheduled.durasi;  
+
+            if (
+                (newStartTime >= scheduledStartTime && newStartTime < scheduledEndTime) ||
+                (newStartTime.getTime() + movieDuration * 60000 > scheduledStartTime && newStartTime.getTime() + movieDuration * 60000 <= scheduledEndTime)
+            ) {
+                return res.status(400).json({
+                    status: `Waktu bertabrakan dengan jadwal yang sudah ada.`,
+                    conflict: {
+                        room_id: scheduled.room_id,
+                        movie_title: scheduled.movieTitle,
+                        existing_start_time: scheduled.time,
+                        existing_end_time: scheduled.waktu_akhir
+                    }
+                });
+            }
+        }
+
+        return res.json({ data: waktuListWithDurations, input_body: formattedTime });
+
+    } catch (error) {
+        console.error("Error filtering room:", error);
+        return res.status(500).json({ error: "Terjadi kesalahan server" });
+    }
+};
+
 
 //TODO :: get seat berdasarkan movie dan waktu terpilihh 
 // misalnya film denan movie_id == xx dan waktu yang tertera pada movie tersebut 
@@ -411,6 +501,7 @@ module.exports = {
     getRoom,
     nonAktifstudios,
     editMovie,
-    addMovie
+    addMovie,
+    filteringroom
 
 }
