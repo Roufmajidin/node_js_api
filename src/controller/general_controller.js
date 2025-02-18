@@ -25,7 +25,7 @@ const getMovies = async (req, res) => {
     try {
         const movies = await prisma.movie.findMany({
             include: {
-                waktu: { 
+                waktu: {
                     include: {
                         rooms: true
                     }
@@ -39,12 +39,12 @@ const getMovies = async (req, res) => {
                 id: waktuItem.id,
                 // waktu: dayjs(waktuItem.time).format("YYYY-MM-DD HH:mm:ss"),
                 // waktu:dayjs(waktuItem.time).tz("Asia/Jakarta").format("YYYY-MM-DD HH:mm:ss"),
-                waktu : waktuItem.time,
-                raw_waktu : waktuItem.time,
+                waktu: waktuItem.time,
+                raw_waktu: waktuItem.time,
                 room_id: waktuItem.room_id,
 
                 movie_id: waktuItem.movie_id,
-                studio: waktuItem.rooms ?.name || "No Room",
+                studio: waktuItem.rooms?.name || "No Room",
                 status: waktuItem.status,
             }))
         }));
@@ -56,6 +56,7 @@ const getMovies = async (req, res) => {
             error: error.message
         });
     }
+    
 }
 // strage config
 const storage = multer.diskStorage({
@@ -140,9 +141,8 @@ const editMovie = async (req, res) => {
             tahun: aa.tahun,
             actor_u: aa.actor_u,
             gambar: req.file ?
-                `/storage/uploads/${req.file.filename}` :
-                aa.gambarLama,
-            
+                `/storage/uploads/${req.file.filename}` : aa.gambarLama,
+
             sinopsis: aa.sinopsis,
             tahun: parseInt(aa.tahun)
             // studio: studio,
@@ -258,7 +258,7 @@ const nonAktifstudios = async (req, res) => {
             }
         }
     });
-    console.log("Data dari database:", studios); 
+    console.log("Data dari database:", studios);
 
     if (studios.length === 0) {
         return res.status(404).json({
@@ -348,53 +348,68 @@ const generateseat = (req) => {
 //     console.log(data)
 //     return res.json({
 //         data : a
-        
+
 //     })
 // }
 // TODO : filtering waktu ketika akan dilakukan penambahan waktu pada jam penayangan film
 
 const filteringroom = async (req, res) => {
     try {
-        const { idroom } = req.params;
-        const { waktu } = req.body;
-        
+        const {
+            idroom
+        } = req.params;
+        const {
+            waktu
+        } = req.body;
+
         if (isNaN(idroom) || !waktu) {
-            return res.status(400).json({ error: "ID room harus angka dan waktu tidak boleh kosong" });
+            return res.status(400).json({
+                error: "ID room harus angka dan waktu tidak boleh kosong"
+            });
         }
 
         const roomId = parseInt(idroom, 10);
-        
+
         let formattedTime = waktu.trim().replace(" ", "T") + ":00.000Z";
         const newStartTime = new Date(formattedTime);
 
         if (isNaN(newStartTime.getTime())) {
-            return res.status(400).json({ error: "Format waktu tidak valid" });
+            return res.status(400).json({
+                error: "Format waktu tidak valid"
+            });
         }
 
         const waktuList = await prisma.waktu.findMany({
-            where: { room_id: roomId },
+            where: {
+                room_id: roomId
+            },
             include: {
-                movies: { select: { durasi: true, judul: true } }
+                movies: {
+                    select: {
+                        durasi: true,
+                        judul: true
+                    }
+                }
             }
         });
 
         const waktuListWithDurations = waktuList.map((waktuItem) => {
             const movieDuration = waktuItem.movies.durasi;
-            const startTime = new Date(waktuItem.time); 
-            const endTime = new Date(startTime.getTime() + movieDuration * 60000); 
+            const startTime = new Date(waktuItem.time);
+            const endTime = new Date(startTime.getTime() + movieDuration * 60000);
 
             return {
                 ...waktuItem,
                 durasi: movieDuration,
                 waktu_akhir: endTime.toISOString(),
-                movieTitle: waktuItem.movies.judul 
+                movieTitle: waktuItem.movies.judul
             };
         });
 
         for (const scheduled of waktuListWithDurations) {
             const scheduledStartTime = new Date(scheduled.time);
             const scheduledEndTime = new Date(scheduled.waktu_akhir);
-            const movieDuration = scheduled.durasi;  
+            const movieDuration = scheduled.durasi;
 
             if (
                 (newStartTime >= scheduledStartTime && newStartTime < scheduledEndTime) ||
@@ -412,11 +427,16 @@ const filteringroom = async (req, res) => {
             }
         }
 
-        return res.json({ data: waktuListWithDurations, input_body: formattedTime });
+        return res.json({
+            data: waktuListWithDurations,
+            input_body: formattedTime
+        });
 
     } catch (error) {
         console.error("Error filtering room:", error);
-        return res.status(500).json({ error: "Terjadi kesalahan server" });
+        return res.status(500).json({
+            error: "Terjadi kesalahan server"
+        });
     }
 };
 
@@ -438,13 +458,47 @@ const getRoom = async (req, res) => {
 
     const roomsWithSeatStatus = rooms.map(room => ({
         ...room,
-        can_generate_seat: !roomIdsWithSeats.includes(room.id) 
+        can_generate_seat: !roomIdsWithSeats.includes(room.id)
     }));
 
     res.status(200).json(roomsWithSeatStatus);
 
 
 
+}
+// TODO:: add event 
+const addEvent = async (req, res) => {
+
+    try {
+        const {
+            roomId,
+            movieId,
+            time
+        } = req.body;
+        let formattedTime = time.trim().replace(" ", "T") + ":00.000Z";
+
+        const d = await prisma.waktu.create({
+            data: {
+                room_id: parseInt(roomId),
+                movie_id: movieId,
+                time: formattedTime,
+                status: 1
+            }
+        })
+    // console.log(d)
+
+
+        return res.json({
+            status: 'Berhasil menambahkan event',
+            data: d
+        })
+
+    } catch (error) {
+        return res.status(404).json({
+            error: error
+        })
+
+    }
 }
 const getSeat = async (req, res) => {
     try {
@@ -502,6 +556,7 @@ module.exports = {
     nonAktifstudios,
     editMovie,
     addMovie,
-    filteringroom
+    filteringroom, 
+    addEvent
 
 }
