@@ -545,6 +545,71 @@ const storeSeat = (req, res) => {
     } = req.body;
 
 }
+const getUsers = async (req, res) =>{
+    console.log("ok")
+
+   
+    try {
+        const user = await prisma.user.findMany();
+        console.log(user)
+        return res.json({
+            status : 200,
+            data :user
+        })
+        user
+    } catch (error) {
+        console.error("Error fetching users:", error.message); // Tambahkan logging error
+
+        return res.json({
+            status : 404,
+            // data : 
+        })
+        
+    }
+}
+const getUserId = async (req,res) =>{
+    const {id} = req.params;
+    try {
+        const user = await prisma.user.findUnique({
+            where:{
+                id : parseInt(id)
+            }
+        })
+        const bookings= await prisma.booking.findMany({
+            where:{
+                user_id : parseInt(id)
+            },
+            // include: {
+            //     waktu :true
+            // }
+        })
+        const waktuIds = bookings.map(b=>b.waktu_id);
+        const listWaktu = await prisma.booking.findMany({
+            where:{
+                waktu_id :{in:waktuIds}
+            }
+        });
+        const bookingwithwaktu = bookings.map(n=> ({
+            ...n,
+            waktu: listWaktu.find(w=>w.waktu_id === n.waktu_id) || null
+        }))
+      
+        const data = {
+            user : user, 
+            booking : bookingwithwaktu
+        }
+        return res.json({
+            status :200, 
+            data : data
+        })
+        
+    } catch (error) {
+        return res.json({
+            status :404, 
+        })
+        
+    }
+}
 
 module.exports = {
 
@@ -557,6 +622,8 @@ module.exports = {
     editMovie,
     addMovie,
     filteringroom, 
-    addEvent
+    addEvent,
+    getUsers,
+    getUserId
 
 }

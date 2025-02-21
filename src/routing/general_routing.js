@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 const multer = require('multer');
 const path = require('path');
 
+
 // controller 
 const controller = require('../controller/general_controller')
 const storage = multer.diskStorage({
@@ -29,6 +30,8 @@ router.put('/saveEdit', upload.single('gambar'), controller.editMovie)
 router.post('/movieadd', upload.single('gambar'), controller.addMovie)
 router.post('/room/:idroom', controller.filteringroom)
 router.post('/event', controller.addEvent)
+router.get('/users', controller.getUsers)
+router.get('/users/:id', controller.getUserId)
 // dummy data 
 
 router.get('/getRoom', controller.getRoom)
