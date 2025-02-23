@@ -44,7 +44,7 @@ const getMovies = async (req, res) => {
                 room_id: waktuItem.room_id,
 
                 movie_id: waktuItem.movie_id,
-                studio: waktuItem.rooms?.name || "No Room",
+                studio: waktuItem.rooms.name || "No Room",
                 status: waktuItem.status,
             }))
         }));
@@ -56,7 +56,7 @@ const getMovies = async (req, res) => {
             error: error.message
         });
     }
-    
+
 }
 // strage config
 const storage = multer.diskStorage({
@@ -485,7 +485,7 @@ const addEvent = async (req, res) => {
                 status: 1
             }
         })
-    // console.log(d)
+        // console.log(d)
 
 
         return res.json({
@@ -545,69 +545,145 @@ const storeSeat = (req, res) => {
     } = req.body;
 
 }
-const getUsers = async (req, res) =>{
+const getUsers = async (req, res) => {
     console.log("ok")
 
-   
+
     try {
         const user = await prisma.user.findMany();
         console.log(user)
         return res.json({
-            status : 200,
-            data :user
+            status: 200,
+            data: user
         })
         user
     } catch (error) {
-        console.error("Error fetching users:", error.message); // Tambahkan logging error
+        console.error("Error fetching users:", error.message); 
 
         return res.json({
-            status : 404,
+            status: 404,
             // data : 
         })
-        
+
     }
 }
-const getUserId = async (req,res) =>{
-    const {id} = req.params;
+
+// TODO :: fetch booking by user Id, grup berdasarkan waktu booking,
+// TODO : misalnya CO tanggal sekarang dan 2 kursi, 
+// TODO : yaudah nanti formatnya "23-2-2025" : "booking [], 1 qr-code dsb, 
+// TODO karna isi qrcode terdapat gruping (id masing-masing data) yaudah
+// TODO ketika scan update by id masing-masing yang ada digruping data"
+const getUserId = async (req, res) => {
+    const {
+        id
+    } = req.params;
     try {
         const user = await prisma.user.findUnique({
-            where:{
-                id : parseInt(id)
+            where: {
+                id: parseInt(id)
             }
         })
-        const bookings= await prisma.booking.findMany({
-            where:{
-                user_id : parseInt(id)
+        const bookings = await prisma.booking.findMany({
+            where: {
+                user_id: parseInt(id)
             },
             // include: {
             //     waktu :true
             // }
         })
-        const waktuIds = bookings.map(b=>b.waktu_id);
+        // TODO : maping data [], biar bisa di assign ke in: [] di prisma, exp -> id : [1,4]
+        // todo : buat nyari data sih, misalnya where id tapi ga tunggal, WHERE id in list data itu gitu
+        const waktuIds = bookings.map(b => b.waktu_id);
+        const seatsId = bookings.map(s => s.seat_id)
         const listWaktu = await prisma.booking.findMany({
-            where:{
-                waktu_id :{in:waktuIds}
+            where: {
+                waktu_id: {
+                    in: waktuIds
+                }
             }
         });
-        const bookingwithwaktu = bookings.map(n=> ({
-            ...n,
-            waktu: listWaktu.find(w=>w.waktu_id === n.waktu_id) || null
-        }))
-      
+        const seat = await prisma.seat.findMany({
+            where: {
+                id: {
+                    in: seatsId
+                }
+            }
+        })
+        const waktu = await prisma.waktu.findMany({
+            where: {
+                id: {
+                    in: waktuIds
+                }
+            }
+        })
+        const roomId = waktu.map((r=> r.room_id));
+
+        const movieId = waktu.map(w => w.movie_id)
+        const room = await prisma.room.findMany({
+            where: {
+                id: {
+                    in: roomId
+                }
+            }
+        })
+        const movie = await prisma.movie.findMany({
+            where: {
+                id: {
+                    in: movieId
+                }
+            }
+        })
+        // TODO : mapping data antar tabel brooo
+        const bookingwithwaktu = bookings.map(n => {
+            const tayang = waktu.find(t => t.id === n.waktu_id) || null
+            const t = {
+                tayang : tayang, 
+                studio: room.find(r=>r.id === tayang.room_id) ||null
+            }
+            const movieData = movie.find(m => m.id === tayang.id) || null
+            return {
+                ...n,
+                seat: seat.find(s => s.id === n.seat_id) || null,
+                waktu: t,
+                movie: movieData
+            }
+        })
+        // TODO : grup where tanggal created seat, misalnya user bisa ambil dua kursi/seat dalam memilih movie
+        const groupedBookings = bookingwithwaktu.reduce((acc, booking) => {
+            const date = dayjs(booking.booking_date).format("YYYY-MM-DD");
+
+            if (!acc[date]) {
+                acc[date] = [];
+            }
+
+            acc[date].push(booking);
+
+            return acc;
+        }, {});
+        //TODO sort grupbooking berdasarkan waktu
+        const groupedData = Object.keys(groupedBookings)
+            .sort((a, b) => new Date(a) - new Date(b)) 
+            .map(date => ({
+                booking_date: date,
+                bookings: groupedBookings[date]
+            }));
+
         const data = {
-            user : user, 
-            booking : bookingwithwaktu
+            user: user,
+            data_booking: groupedData
         }
+        // console.log(seat)
+
         return res.json({
-            status :200, 
-            data : data
+            status: 200,
+            data: data
         })
-        
     } catch (error) {
+        console.error("Error fetching user data:", error); 
         return res.json({
-            status :404, 
+            status: 404,
         })
-        
+
     }
 }
 
@@ -621,7 +697,7 @@ module.exports = {
     nonAktifstudios,
     editMovie,
     addMovie,
-    filteringroom, 
+    filteringroom,
     addEvent,
     getUsers,
     getUserId
