@@ -709,14 +709,15 @@ const booking = async (req, res) => {
         console.log("Data sebelum enkripsi:", dataToPost);
         // TODO : enkrip data
         const enkripData = encrypt(JSON.stringify(dataToPost))
-        const qrCode = await QRCode.toDataURL(enkripData)
+        // const qrCode = await QRCode.toDataURL(enkripData)
+        const qrCode = await QRCode.toString(enkripData, { type: 'terminal' });
 
-        console.log("QR Code berhasil dibuat:", qrCode);
+        // console.log("✅ QR Code berhasil dibuat:", qrCode);
 
         const db = await prisma.booking.create({
             data: {
                 ...dataToPost,
-                qr_code: qrCode
+                qr_code: enkripData
             }
         })
         console.log(data)
