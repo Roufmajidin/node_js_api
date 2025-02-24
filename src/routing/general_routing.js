@@ -32,6 +32,7 @@ router.post('/room/:idroom', controller.filteringroom)
 router.post('/event', controller.addEvent)
 router.get('/users', controller.getUsers)
 router.get('/users/:id', controller.getUserId)
+router.post('/postBooking', controller.booking)
 // dummy data 
 
 router.get('/getRoom', controller.getRoom)

@@ -17,6 +17,8 @@ const multer = require('multer');
 const path = require('path')
 dayjs.extend(utc);
 dayjs.extend(timezone);
+const crypto = require('crypto')
+const QRCode = require('qrcode')
 
 const getMovies = async (req, res) => {
     console.log("Server Time:", new Date().toString());
@@ -558,7 +560,7 @@ const getUsers = async (req, res) => {
         })
         user
     } catch (error) {
-        console.error("Error fetching users:", error.message); 
+        console.error("Error fetching users:", error.message);
 
         return res.json({
             status: 404,
@@ -616,7 +618,7 @@ const getUserId = async (req, res) => {
                 }
             }
         })
-        const roomId = waktu.map((r=> r.room_id));
+        const roomId = waktu.map((r => r.room_id));
 
         const movieId = waktu.map(w => w.movie_id)
         const room = await prisma.room.findMany({
@@ -637,8 +639,8 @@ const getUserId = async (req, res) => {
         const bookingwithwaktu = bookings.map(n => {
             const tayang = waktu.find(t => t.id === n.waktu_id) || null
             const t = {
-                tayang : tayang, 
-                studio: room.find(r=>r.id === tayang.room_id) ||null
+                tayang: tayang,
+                studio: room.find(r => r.id === tayang.room_id) || null
             }
             const movieData = movie.find(m => m.id === tayang.id) || null
             return {
@@ -662,7 +664,7 @@ const getUserId = async (req, res) => {
         }, {});
         //TODO sort grupbooking berdasarkan waktu
         const groupedData = Object.keys(groupedBookings)
-            .sort((a, b) => new Date(a) - new Date(b)) 
+            .sort((a, b) => new Date(a) - new Date(b))
             .map(date => ({
                 booking_date: date,
                 bookings: groupedBookings[date]
@@ -679,13 +681,87 @@ const getUserId = async (req, res) => {
             data: data
         })
     } catch (error) {
-        console.error("Error fetching user data:", error); 
+        console.error("Error fetching user data:", error);
         return res.json({
             status: 404,
         })
 
     }
+
+
 }
+// TODO :  booking
+const booking = async (req, res) => {
+  
+    const data = req.body;
+    // console.log(data)
+
+    try {
+        const dataToPost = {
+            user_id: parseInt(data.userId),
+            seat_id:parseInt( data.seatId),
+            booking_date: new Date(),
+            waktu_id: parseInt(data.waktuId),
+            expired: 0,
+            method_payment: "Qris"
+            // qr: code
+        }
+        console.log("Data sebelum enkripsi:", dataToPost);
+        // TODO : enkrip data
+        const enkripData = encrypt(JSON.stringify(dataToPost))
+        const qrCode = await QRCode.toDataURL(enkripData)
+
+        console.log("QR Code berhasil dibuat:", qrCode);
+
+        const db = await prisma.booking.create({
+            data: {
+                ...dataToPost,
+                qr_code: qrCode
+            }
+        })
+        console.log(data)
+
+        return res.json({
+            status: 200,
+            data: {
+                db
+            }
+        })
+    } catch (error) {
+        return res.json({
+            status: error.status,
+            data: []
+        })
+
+    }
+
+}
+// TODO ::etc function
+const algorithm = 'aes-256-cbc'
+const secretKey = crypto.randomBytes(32)
+const iv = crypto.randomBytes(16)
+function encrypt(text) {
+    try {
+        let cipher = crypto.createCipheriv(algorithm, secretKey, iv);
+        let encrypted = Buffer.concat([cipher.update(text), cipher.final()]);
+        let encryptedText = iv.toString('hex') + ':' + encrypted.toString('hex');
+        console.log("🔒 Encrypted Data:", encryptedText);
+        return encryptedText;
+    } catch (error) {
+        console.error("❌ Error pada encrypt():", error);
+        return null;
+    }
+}
+
+function decrypt(text) {
+    let parts = text.split(':');
+    let iv = Buffer.from(parts[0], 'hex');
+    let encryptedText = Buffer.from(parts[1], 'hex');
+    let decipher = crypto.createDecipheriv(algorithm, secretKey, iv);
+    let decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
+    return decrypted.toString();
+}
+
 
 module.exports = {
 
@@ -700,6 +776,7 @@ module.exports = {
     filteringroom,
     addEvent,
     getUsers,
-    getUserId
+    getUserId,
+    booking,
 
 }
