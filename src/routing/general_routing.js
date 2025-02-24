@@ -36,70 +36,71 @@ router.post('/postBooking', controller.booking)
 // dummy data 
 
 router.get('/getRoom', controller.getRoom)
+router.get('/generate/:id', controller.generateseat)
 router.get("/create", async (req, res) => {
     try {
-        const id = Math.floor(Math.random() * 1000000);
-        const room = await prisma.room.create({
-            data: {
-                id: id,
-                name: "Studio 1",
-                total_seat: 63, // 7 row x 9 seat
-            },
-        });
+        // const id = Math.floor(Math.random() * 1000000);
+        // const room = await prisma.room.create({
+        //     data: {
+        //         id: id,
+        //         name: "Studio 1",
+        //         total_seat: 63, // 7 row x 9 seat
+        //     },
+        // });
 
         await controller.generateseat(id);
 
-        const movie = await prisma.movie.create({
-            data: {
-                genre: "Action",
-                judul: "Hallo world",
-                durasi: "160 Menit",
-                actor_u: "bj, bi b dev",
-                gambar: "/as/as/jpg",
-                tahun: "2017",
-                sinopsis: "test sinopsisi",
-                showTime: new Date(),
-            },
-        });
+        // const movie = await prisma.movie.create({
+        //     data: {
+        //         genre: "Action",
+        //         judul: "Hallo world",
+        //         durasi: "160 Menit",
+        //         actor_u: "bj, bi b dev",
+        //         gambar: "/as/as/jpg",
+        //         tahun: "2017",
+        //         sinopsis: "test sinopsisi",
+        //         showTime: new Date(),
+        //     },
+        // });
 
-        const waktu = await prisma.waktu.create({
-            data: {
-                time: new Date(),
-                movie_id: movie.id,
-                room_id: id,
-            },
-        });
+        // const waktu = await prisma.waktu.create({
+        //     data: {
+        //         time: new Date(),
+        //         movie_id: movie.id,
+        //         room_id: id,
+        //     },
+        // });
 
-        // 5️⃣ Tambah Dummy User
-        const user = await prisma.user.create({
-            data: {
-                name: "M",
-                email: "m@mail.com",
-                password: "12345678",
-            },
-        });
+        // // 5️⃣ Tambah Dummy User
+        // const user = await prisma.user.create({
+        //     data: {
+        //         name: "M",
+        //         email: "m@mail.com",
+        //         password: "12345678",
+        //     },
+        // });
 
-        // 6️⃣ Tambah Dummy Booking (Seat A1)
-        const seat = await prisma.seat.findFirst({
-            where: {
-                room_id: id,
-                row: "A",
-                number: 2
-            },
-        });
+        // // 6️⃣ Tambah Dummy Booking (Seat A1)
+        // const seat = await prisma.seat.findFirst({
+        //     where: {
+        //         room_id: id,
+        //         row: "A",
+        //         number: 2
+        //     },
+        // });
 
-        if (seat) {
-            await prisma.booking.create({
-                data: {
-                    user_id: user.id,
-                    seat_id: seat.id,
-                    method_payment: "Credit Card",
-                    qr_code: "qrcode123",
-                    booking_date: new Date(),
-                    waktu_id: waktu.id,
-                },
-            });
-        }
+        // if (seat) {
+        //     await prisma.booking.create({
+        //         data: {
+        //             user_id: user.id,
+        //             seat_id: seat.id,
+        //             method_payment: "Credit Card",
+        //             qr_code: "qrcode123",
+        //             booking_date: new Date(),
+        //             waktu_id: waktu.id,
+        //         },
+        //     });
+        // }
 
         res.json({
             message: "Dummy data created successfully!"

@@ -91,6 +91,7 @@ const addMovie = async (req, res) => {
                 actor_u: data.actor_u,
                 gambar: req.file ? `/storage/uploads/${req.file.filename}` : null,
                 sinopsis: data.sinopsis,
+                harga: parseInt(data.harga),
                 tahun: parseInt(data.tahun)
 
             }
@@ -122,6 +123,7 @@ const editMovie = async (req, res) => {
         durasi,
         tahun,
         gambar,
+        harga,
         sinopsis,
         actor_u,
         status,
@@ -146,8 +148,8 @@ const editMovie = async (req, res) => {
                 `/storage/uploads/${req.file.filename}` : aa.gambarLama,
 
             sinopsis: aa.sinopsis,
-            tahun: parseInt(aa.tahun)
-            // studio: studio,
+            tahun: parseInt(aa.tahun),
+            harga:parseInt( aa.harga),
 
         }
     })
@@ -290,19 +292,19 @@ const nonAktifstudios = async (req, res) => {
     });
 
 }
-const generateseat = (req) => {
+const generateseat = async (req) => {
     const rows = ["A", "B", "C", "D", "E", "F", "G"]
     const seat = [];
     for (const row of rows) {
         for (let number = 1; number <= 9; number++) {
             seat.push({
-                room_id: req,
+                room_id: parseInt(req.params.id),
                 row,
                 number,
             });
         }
     }
-    return prisma.seat.createMany({
+    await prisma.seat.createMany({
         data: seat
     });
 
@@ -642,7 +644,7 @@ const getUserId = async (req, res) => {
                 tayang: tayang,
                 studio: room.find(r => r.id === tayang.room_id) || null
             }
-            const movieData = movie.find(m => m.id === tayang.id) || null
+            const movieData = movie.find(m => m.id === tayang.movie_id) || null
             return {
                 ...n,
                 seat: seat.find(s => s.id === n.seat_id) || null,
@@ -675,7 +677,7 @@ const getUserId = async (req, res) => {
             data_booking: groupedData
         }
         // console.log(seat)
-
+        console.log(data)
         return res.json({
             status: 200,
             data: data

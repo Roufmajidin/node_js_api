@@ -70,6 +70,7 @@ model Movie {
   tahun Int
   actor_u String
   durasi     Int
+  harga Int
   showTime   DateTime
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
