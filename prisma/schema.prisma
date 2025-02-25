@@ -24,7 +24,7 @@ model User {
 
   last_login DateTime? // Nullable
   created_at DateTime   @default(now())
-  updated_at DateTime   @updatedAt
+  updated_at DateTime   @default(now())
   mahasiswa  Mahasiswa?
 }
 
@@ -38,7 +38,7 @@ model Mahasiswa {
   tempat_lahir  String
   no_hp         Int
   created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  updated_at    DateTime @default(now())
 }
 
 model Seat {
@@ -47,7 +47,7 @@ model Seat {
   row        String
   number     Int
   created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  updated_at DateTime @default(now())
 
   Booking Booking[]
 }
@@ -57,7 +57,7 @@ model Room {
   name       String
   total_seat Int
   created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  updated_at DateTime @default(now())
   Waktu      Waktu[]
 }
 
@@ -73,7 +73,7 @@ model Movie {
   harga Int
   showTime   DateTime
   created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  updated_at DateTime @default(now())
   waktu      Waktu[]
 }
 
@@ -84,7 +84,7 @@ model Waktu {
   room_id    Int
   status Int @default(0)
   created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
+  updated_at DateTime  @default(now())
   movies     Movie     @relation(fields: [movie_id], references: [id])
   rooms      Room      @relation(fields: [room_id], references: [id])
   Booking    Booking[]
@@ -100,7 +100,7 @@ model Booking {
   booking_date DateTime
   waktu_id     Int
   created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  updated_at   DateTime @default(now())
   seats        Seat     @relation(fields: [seat_id], references: [id])
   waktu        Waktu    @relation(fields: [waktu_id], references: [id])
 }
