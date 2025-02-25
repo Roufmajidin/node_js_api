@@ -37,6 +37,9 @@ router.post('/postBooking', controller.booking)
 
 router.get('/getRoom', controller.getRoom)
 router.get('/generate/:id', controller.generateseat)
+
+// scanner
+router.post('/postScan', controller.scan)
 router.get("/create", async (req, res) => {
     try {
         // const id = Math.floor(Math.random() * 1000000);
