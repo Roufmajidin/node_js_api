@@ -632,20 +632,82 @@ const getUserId = async (req, res) => {
             where: {
                 user_id: id
             },
-            include :{
-                order:true
+            include: {
+                order: true
             }
             // include: {
             //     waktu :true
             // }
         })
-        const resultBooking = bookings.map(item => ({
-            ...item,
-            bookings: JSON.parse(item.data)
-        }))
-    
 
-        console.log(resultBooking)
+
+        const seatIds = bookings.flatMap(item => JSON.parse(item.data).map(data => data.seatId));
+        const waktuIds = bookings.flatMap(item => JSON.parse(item.data).map(data => data.waktuId));
+
+        const seats = await prisma.seat.findMany({
+            where: {
+                id: {
+                    in: seatIds
+                }
+            }
+        });
+        const waktus = await prisma.waktu.findMany({
+            where: {
+                id: {
+                    in: waktuIds
+                }
+            }
+        });
+        const movieIds = waktus.map(waktu => waktu.movie_id);
+        const movies = await prisma.movie.findMany({
+            where: {
+                id: {
+                    in: movieIds
+                }
+            }
+        });
+        const roomIds = waktus.map(waktu => waktu.room_id)
+
+        const room = await prisma.room.findMany({
+            where: {
+                id: {
+                    in: roomIds
+                }
+            }
+        });
+        const methods = await prisma.method.findMany();
+
+        const resultBooking = bookings.map(item => {
+            const parsedBookings = JSON.parse(item.data);
+
+            return {
+                ...item,
+                method: methods.find(method => method.id === item.mp_id),
+                bookings: parsedBookings.map(data => {
+                    const seatData = seats.find(seat => seat.id === data.seatId);
+                    const waktuData = waktus.find(waktu => waktu.id === data.waktuId);
+                    const roomData = room.find(r => r.id === waktuData.room_id);
+                    const movieData = waktuData ? movies.find(movie => movie.id === waktuData.movie_id) : null;
+                    const roomDatas = roomData ? room.find(room => room.id === roomData.id) : null;
+
+                    return seatData ? {
+                            ...seatData,
+                            waktu: waktuData ? {
+                                ...waktuData,
+                                movie: movieData,
+                                room:roomDatas
+                            } : null
+                        } :
+                        null;
+                }).filter(Boolean) 
+            };
+        });
+
+        console.log('Final Result:', resultBooking);
+
+
+
+        // console.log(seat)
         return res.json({
             status: 200,
             data: resultBooking
