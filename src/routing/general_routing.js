@@ -37,6 +37,8 @@ router.post('/postBooking', controller.booking)
 
 router.get('/getRoom', controller.getRoom)
 router.get('/generate/:id', controller.generateseat)
+router.post('/generate_room/', controller.generateroom)
+router.post('/payment/', controller.generatePayment)
 
 // scanner
 router.post('/postScan', controller.scan)

@@ -12,9 +12,14 @@ const {
     json
 } = require('body-parser');
 const prisma = new PrismaClient();
+const { v4: uuidv4 } = require('uuid');
+
+
 // register user
 const register = (req, res) => {
     const error = validationResult(req);
+    const userId = uuidv4();
+
     // const {
     //     data
     // } = req.body;
@@ -51,7 +56,7 @@ const register = (req, res) => {
                         // console.log(hash)
                         db.query(
 
-                            `INSERT INTO user (name, email, password) VALUES (${db.escape(req.body.name)}, ${db.escape(req.body.email)}, ${db.escape(hash)})`,
+                            `INSERT INTO user (id, name, email, password) VALUES (${db.escape(userId)},${db.escape(req.body.name)}, ${db.escape(req.body.email)}, ${db.escape(hash)})`,
                             (err, result) => {
                                 console.log(result)
                                 if (err) {

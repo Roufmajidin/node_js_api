@@ -1,11 +1,15 @@
 const express = require('express');
 const {
+    v4: uuidv4
+} = require('uuid');
+
+const {
     PrismaClient
 } = require('@prisma/client');
 const {
     json
 } = require('body-parser')
-require('dotenv').config(); 
+require('dotenv').config();
 const prisma = new PrismaClient();
 // TODO : getAll Movies
 const dayjs = require('dayjs');
@@ -73,10 +77,14 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage
 })
+
 // TODO AddMovie 
 const addMovie = async (req, res) => {
     // console.log("gambar")
-    const data = req.body
+    const data = req.body;
+    const uniqId = uuidv4();
+
+
     try {
 
         // console.log("Request Body:", data);
@@ -85,6 +93,7 @@ const addMovie = async (req, res) => {
         // const gambar = req.body.gambar ? `/storage/uploads/${req.body.gambar}` : null;
         const sm = await prisma.movie.create({
             data: {
+                id: uniqId,
                 judul: data.judul,
                 genre: data.genre,
                 durasi: parseInt(data.durasi),
@@ -135,7 +144,7 @@ const editMovie = async (req, res) => {
 
     const updatedMov = await prisma.movie.updateMany({
         where: {
-            id: parseInt(aa.id)
+            id: aa.id
         },
         data: {
             genre: aa.genre,
@@ -299,7 +308,8 @@ const generateseat = async (req) => {
     for (const row of rows) {
         for (let number = 1; number <= 9; number++) {
             seat.push({
-                room_id: parseInt(req.params.id),
+                id: uuidv4(),
+                room_id: req.params.id,
                 row,
                 number,
             });
@@ -308,6 +318,34 @@ const generateseat = async (req) => {
     await prisma.seat.createMany({
         data: seat
     });
+
+}
+const generateroom = async (req) => {
+
+
+    await prisma.room.create({
+        data: {
+            id: uuidv4(),
+            name: req.body.name,
+            total_seat: parseInt(req.body.total_seat)
+
+        }
+    });
+
+}
+const generatePayment = async (req, res) => {
+    const data = {
+        id: uuidv4(),
+        name: req.body.name,
+        description: req.body.description,
+    }
+    await prisma.method.create({
+        data: data
+    });
+    return res.json({
+        message: "Berhasil membuat data pembayaran",
+        data: data
+    })
 
 }
 // {
@@ -367,13 +405,13 @@ const filteringroom = async (req, res) => {
             waktu
         } = req.body;
 
-        if (isNaN(idroom) || !waktu) {
-            return res.status(400).json({
-                error: "ID room harus angka dan waktu tidak boleh kosong"
-            });
-        }
+        // if (isNaN(idroom) || !waktu) {
+        //     return res.status(400).json({
+        //         error: "ID room harus angka dan waktu tidak boleh kosong"
+        //     });
+        // }
 
-        const roomId = parseInt(idroom, 10);
+        const roomId = idroom
 
         let formattedTime = waktu.trim().replace(" ", "T") + ":00.000Z";
         const newStartTime = new Date(formattedTime);
@@ -473,6 +511,8 @@ const getRoom = async (req, res) => {
 }
 // TODO:: add event 
 const addEvent = async (req, res) => {
+    console.log("req.body")
+    console.log(req.body)
 
     try {
         const {
@@ -484,13 +524,13 @@ const addEvent = async (req, res) => {
 
         const d = await prisma.waktu.create({
             data: {
-                room_id: parseInt(roomId),
+                id: uuidv4(),
+                room_id: roomId,
                 movie_id: movieId,
                 time: formattedTime,
                 status: 1
             }
         })
-        // console.log(d)
 
 
         return res.json({
@@ -585,107 +625,34 @@ const getUserId = async (req, res) => {
     try {
         const user = await prisma.user.findUnique({
             where: {
-                id: parseInt(id)
+                id: id
             }
         })
         const bookings = await prisma.booking.findMany({
             where: {
-                user_id: parseInt(id)
+                user_id: id
             },
+            include :{
+                order:true
+            }
             // include: {
             //     waktu :true
             // }
         })
-        // TODO : maping data [], biar bisa di assign ke in: [] di prisma, exp -> id : [1,4]
-        // todo : buat nyari data sih, misalnya where id tapi ga tunggal, WHERE id in list data itu gitu
-        const waktuIds = bookings.map(b => b.waktu_id);
-        const seatsId = bookings.map(s => s.seat_id)
-        const listWaktu = await prisma.booking.findMany({
-            where: {
-                waktu_id: {
-                    in: waktuIds
-                }
-            }
-        });
-        const seat = await prisma.seat.findMany({
-            where: {
-                id: {
-                    in: seatsId
-                }
-            }
-        })
-        const waktu = await prisma.waktu.findMany({
-            where: {
-                id: {
-                    in: waktuIds
-                }
-            }
-        })
-        const roomId = waktu.map((r => r.room_id));
+        const resultBooking = bookings.map(item => ({
+            ...item,
+            bookings: JSON.parse(item.data)
+        }))
+    
 
-        const movieId = waktu.map(w => w.movie_id)
-        const room = await prisma.room.findMany({
-            where: {
-                id: {
-                    in: roomId
-                }
-            }
-        })
-        const movie = await prisma.movie.findMany({
-            where: {
-                id: {
-                    in: movieId
-                }
-            }
-        })
-        // TODO : mapping data antar tabel brooo
-        const bookingwithwaktu = bookings.map(n => {
-            const tayang = waktu.find(t => t.id === n.waktu_id) || null
-            const t = {
-                tayang: tayang,
-                studio: room.find(r => r.id === tayang.room_id) || null
-            }
-            const movieData = movie.find(m => m.id === tayang.movie_id) || null
-            return {
-                ...n,
-                seat: seat.find(s => s.id === n.seat_id) || null,
-                waktu: t,
-                movie: movieData
-            }
-        })
-        // TODO : grup where tanggal created seat, misalnya user bisa ambil dua kursi/seat dalam memilih movie
-        const groupedBookings = bookingwithwaktu.reduce((acc, booking) => {
-            const date = dayjs(booking.booking_date).format("YYYY-MM-DD");
-
-            if (!acc[date]) {
-                acc[date] = [];
-            }
-
-            acc[date].push(booking);
-
-            return acc;
-        }, {});
-        //TODO sort grupbooking berdasarkan waktu
-        const groupedData = Object.keys(groupedBookings)
-            .sort((a, b) => new Date(a) - new Date(b))
-            .map(date => ({
-                booking_date: date,
-                bookings: groupedBookings[date]
-            }));
-
-        const data = {
-            user: user,
-            data_booking: groupedData
-        }
-        // console.log(seat)
-        console.log(data)
+        console.log(resultBooking)
         return res.json({
             status: 200,
-            data: data
+            data: resultBooking
         })
     } catch (error) {
         console.error("Error fetching user data:", error);
-        return res.json({
+        return res.status(404).json({
             status: 404,
         })
 
@@ -698,36 +665,45 @@ const booking = async (req, res) => {
 
     const data = req.body;
     // console.log(data)
-
+    const unId = uuidv4()
     try {
         const dataToPost = {
-            user_id: parseInt(data.userId),
-            seat_id: parseInt(data.seatId),
+            id: unId,
+            user_id: data.userId,
+            data: JSON.stringify(data.data),
             booking_date: dayjs().tz("Asia/Jakarta").toISOString(), // ✅ Format ISO-8601 WIB
-            waktu_id: parseInt(data.waktuId),
             expired: 0,
-            method_payment: "Qris"
+            mp_id: data.mp_id
             // qr: code
         }
-        console.log("Data sebelum enkripsi:", dataToPost);
+        console.log("data:", dataToPost);
         // TODO : enkrip data
         const enkripData = encrypt(JSON.stringify(dataToPost))
-        // const qrCode = await QRCode.toDataURL(enkripData)
-        const qrCode = QRCode.toString(enkripData, {
-            type: 'terminal'
-        });
+        // // const qrCode = await QRCode.toDataURL(enkripData)
 
-        // console.log("✅ QR Code berhasil dibuat:", qrCode);
 
         const db = await prisma.booking.create({
             data: {
+
                 ...dataToPost,
                 qr_code: enkripData
                 // "created_at" : new Date(),
                 // "updated_at" : new Date(),
             }
         })
-        console.log('ds', db)
+        const dbOrder = await prisma.order.create({
+            data: {
+                id: uuidv4(),
+                booking_id: dataToPost.id,
+                link_pay: "",
+                user_id: data.userId,
+                status: 0,
+                total_price: 100000,
+
+            }
+        })
+        // console.log(res)
+        // console.log('ds', db)
 
         return res.json({
             status: 200,
@@ -751,7 +727,10 @@ const scan = async (req, res) => {
     } = req.body;
     console.log("hallo")
     if (!data || typeof data !== 'string' || !data.includes(':')) {
-        return res.status(400).json({ status: "error", message: "Format data salah!" });
+        return res.status(400).json({
+            status: "error",
+            message: "Format data salah!"
+        });
     }
 
     try {
@@ -771,12 +750,12 @@ const scan = async (req, res) => {
     }
 }
 // TODO ::etc function
-const algorithm = process.env.ALGORITHM; 
+const algorithm = process.env.ALGORITHM;
 const secretKey = crypto.createHash('sha256').update(process.env.SECRET_KEY).digest();
 
 function encrypt(text) {
     try {
-        const iv = crypto.randomBytes(16); 
+        const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv(algorithm, secretKey, iv);
         const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
 
@@ -827,5 +806,7 @@ module.exports = {
     getUserId,
     booking,
     scan,
+    generateroom,
+    generatePayment
 
 }
