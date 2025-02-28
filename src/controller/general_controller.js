@@ -695,11 +695,11 @@ const getUserId = async (req, res) => {
                             waktu: waktuData ? {
                                 ...waktuData,
                                 movie: movieData,
-                                room:roomDatas
+                                room: roomDatas
                             } : null
                         } :
                         null;
-                }).filter(Boolean) 
+                }).filter(Boolean)
             };
         });
 
@@ -729,50 +729,111 @@ const booking = async (req, res) => {
     // console.log(data)
     const unId = uuidv4()
     try {
-        const dataToPost = {
-            id: unId,
-            user_id: data.userId,
-            data: JSON.stringify(data.data),
-            booking_date: dayjs().tz("Asia/Jakarta").toISOString(), // ✅ Format ISO-8601 WIB
-            expired: 0,
-            mp_id: data.mp_id
-            // qr: code
+        const requestedSeats = data.data.map(seat => ({
+            seatId: String(seat.seatId),
+            waktuId: String(seat.waktuId),
+        }));
+        const allBookings = await prisma.booking.findMany();
+        const bookedSeats = allBookings.flatMap(booking => {
+            try {
+                return booking.data ? JSON.parse(booking.data).map(seat => ({
+                    seatId: seat.seatId,
+                    waktuId: seat.waktuId
+                })) : [];
+            } catch (error) {
+                console.error("Error parsing booking data:", booking.data, error);
+                return [];
+            }
+        });
+
+        // Debugging log
+        console.log("Requested Seats:", requestedSeats);
+        console.log("Booked Seats:", bookedSeats);
+
+        const alreadyBookedSeats = [];
+        const availableSeats = [];
+
+        const seatDetail = await prisma.seat.findMany();
+        requestedSeats.forEach( reqSeat => {
+            const isBooked = bookedSeats.some(bookedSeat =>
+                reqSeat.seatId === bookedSeat.seatId && reqSeat.waktuId === bookedSeat.waktuId
+            );
+
+            // const waktuDetail = await prisma.waktu.findMany();
+            if (isBooked) {
+                alreadyBookedSeats.push({
+                    reqSeat, "data" :seatDetail.find(s=>s.id === reqSeat.seatId),
+                });
+            } else {
+                availableSeats.push({
+                    reqSeat,
+                    "data": seatDetail.find(s=>s.id === reqSeat.seatId),
+                    // "waktu": waktuDetail
+                });
+            }
+        });
+
+        if (alreadyBookedSeats.length > 0) {
+            return res.status(400).json({
+                error: "Some seats are already booked!",
+                bookedSeats: alreadyBookedSeats, // Kirim daftar kursi yang sudah dibooking
+                availableSeats: availableSeats, // Kirim daftar kursi yang masih bisa dibooking
+            });
         }
-        console.log("data:", dataToPost);
-        // TODO : enkrip data
-        const enkripData = encrypt(JSON.stringify(dataToPost))
-        // // const qrCode = await QRCode.toDataURL(enkripData)
-
-
-        const db = await prisma.booking.create({
-            data: {
-
-                ...dataToPost,
-                qr_code: enkripData
-                // "created_at" : new Date(),
-                // "updated_at" : new Date(),
-            }
-        })
-        const dbOrder = await prisma.order.create({
-            data: {
-                id: uuidv4(),
-                booking_id: dataToPost.id,
-                link_pay: "",
-                user_id: data.userId,
-                status: 0,
-                total_price: 100000,
-
-            }
-        })
-        // console.log(res)
-        // console.log('ds', db)
-
+        console.log(requestedSeats)
+        // Jika semua kursi tersedia, lanjutkan booking
         return res.json({
-            status: 200,
-            data: {
-                db
-            }
-        })
+            success: true,
+            message: "All seats are available!",
+            availableSeats
+        });
+
+
+        // const dataToPost = {
+        //     id: unId,
+        //     user_id: data.userId,
+        //     data: JSON.stringify(data.data),
+        //     booking_date: dayjs().tz("Asia/Jakarta").toISOString(), // ✅ Format ISO-8601 WIB
+        //     expired: 0,
+        //     mp_id: data.mp_id
+        //     // qr: code
+        // }
+        // console.log("data:", dataToPost);
+        // // TODO : enkrip data
+        // const a = await prisma.booking.findMany();
+
+        // const enkripData = encrypt(JSON.stringify(dataToPost))
+        // // // const qrCode = await QRCode.toDataURL(enkripData)
+
+        // const db = await prisma.booking.create({
+        //     data: {
+
+        //         ...dataToPost,
+        //         qr_code: enkripData
+        //         // "created_at" : new Date(),
+        //         // "updated_at" : new Date(),
+        //     }
+        // })
+        // const dbOrder = await prisma.order.create({
+        //     data: {
+        //         id: uuidv4(),
+        //         booking_id: dataToPost.id,
+        //         link_pay: "",
+        //         user_id: data.userId,
+        //         status: 0,
+        //         total_price: 100000,
+
+        //     }
+        // })
+        // // console.log(res)
+        // // console.log('ds', db)
+
+        // return res.json({
+        //     status: 200,
+        //     data: {
+        //         db
+        //     }
+        // })
     } catch (error) {
         return res.json({
             status: error.status,
