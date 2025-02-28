@@ -553,21 +553,48 @@ const getSeat = async (req, res) => {
         } = req.params;
         const seat = await prisma.seat.findMany({
             where: {
-                room_id: parseInt(roomId)
+                room_id: roomId
             },
-            include: {
-                Booking: {
-                    where: {
-                        waktu_id: parseInt(waktuId)
-                    }
-                }
+
+        })
+        const waktu = await prisma.waktu.findFirst({
+            where: {
+                room_id: roomId,
+                id: waktuId
             }
         })
-        console.log(seat)
+        // ambil booking
+        const booking = await prisma.booking.findMany();
+        // const booked = booking.flatMap(item=>JSON.parse(item.data).map(data=>data.waktuId))
+        const bookedSeats = booking
+        .flatMap(item => {
+            try {
+                const parsedData = JSON.parse(item.data);
+                if (!Array.isArray(parsedData)) return []; 
+                return parsedData.map(data => data.seatId); 
+            } catch (error) {
+                console.error("Error parsing booking data:", item.data, error);
+                return [];
+            }
+        })
+        .filter(Boolean);
+        const seatsWithStatus = seat.map(seat => ({
+            ...seat,
+            isBooked: bookedSeats.some(bookedId => bookedId === seat.id) 
+        }));
+        console.log("bookedSeat:", bookedSeats); 
+        console.log("Raw Booked Data:", booking.map(b => b.data)); 
+        console.log("Processed Booked Data:", bookedSeats);
+        console.log("Seat IDs in bookedSeats:", bookedSeats.map(s => s));
+        console.log("Seat IDs in seat_status:", seat.map(s => s.id));
+
         return res.json({
             data: {
                 total_seat: seat.length,
-                seat: seat,
+                // seat: seat,
+                waktu: waktu,
+                boking: bookedSeats,
+                seat_status: seatsWithStatus
             }
         })
 
@@ -754,7 +781,7 @@ const booking = async (req, res) => {
         const availableSeats = [];
 
         const seatDetail = await prisma.seat.findMany();
-        requestedSeats.forEach( reqSeat => {
+        requestedSeats.forEach(reqSeat => {
             const isBooked = bookedSeats.some(bookedSeat =>
                 reqSeat.seatId === bookedSeat.seatId && reqSeat.waktuId === bookedSeat.waktuId
             );
@@ -762,12 +789,13 @@ const booking = async (req, res) => {
             // const waktuDetail = await prisma.waktu.findMany();
             if (isBooked) {
                 alreadyBookedSeats.push({
-                    reqSeat, "data" :seatDetail.find(s=>s.id === reqSeat.seatId),
+                    reqSeat,
+                    "data": seatDetail.find(s => s.id === reqSeat.seatId),
                 });
             } else {
                 availableSeats.push({
                     reqSeat,
-                    "data": seatDetail.find(s=>s.id === reqSeat.seatId),
+                    "data": seatDetail.find(s => s.id === reqSeat.seatId),
                     // "waktu": waktuDetail
                 });
             }
@@ -776,64 +804,64 @@ const booking = async (req, res) => {
         if (alreadyBookedSeats.length > 0) {
             return res.status(400).json({
                 error: "Some seats are already booked!",
-                bookedSeats: alreadyBookedSeats, // Kirim daftar kursi yang sudah dibooking
-                availableSeats: availableSeats, // Kirim daftar kursi yang masih bisa dibooking
+                bookedSeats: alreadyBookedSeats, 
+                availableSeats: availableSeats, 
             });
         }
-        console.log(requestedSeats)
-        // Jika semua kursi tersedia, lanjutkan booking
-        return res.json({
-            success: true,
-            message: "All seats are available!",
-            availableSeats
-        });
-
-
-        // const dataToPost = {
-        //     id: unId,
-        //     user_id: data.userId,
-        //     data: JSON.stringify(data.data),
-        //     booking_date: dayjs().tz("Asia/Jakarta").toISOString(), // ✅ Format ISO-8601 WIB
-        //     expired: 0,
-        //     mp_id: data.mp_id
-        //     // qr: code
-        // }
-        // console.log("data:", dataToPost);
-        // // TODO : enkrip data
-        // const a = await prisma.booking.findMany();
-
-        // const enkripData = encrypt(JSON.stringify(dataToPost))
-        // // // const qrCode = await QRCode.toDataURL(enkripData)
-
-        // const db = await prisma.booking.create({
-        //     data: {
-
-        //         ...dataToPost,
-        //         qr_code: enkripData
-        //         // "created_at" : new Date(),
-        //         // "updated_at" : new Date(),
-        //     }
-        // })
-        // const dbOrder = await prisma.order.create({
-        //     data: {
-        //         id: uuidv4(),
-        //         booking_id: dataToPost.id,
-        //         link_pay: "",
-        //         user_id: data.userId,
-        //         status: 0,
-        //         total_price: 100000,
-
-        //     }
-        // })
-        // // console.log(res)
-        // // console.log('ds', db)
-
+        // console.log(requestedSeats)
+        // // Jika semua kursi tersedia, lanjutkan booking
         // return res.json({
-        //     status: 200,
-        //     data: {
-        //         db
-        //     }
-        // })
+        //     success: true,
+        //     message: "All seats are available!",
+        //     availableSeats
+        // });
+
+
+        const dataToPost = {
+            id: unId,
+            user_id: data.userId,
+            data: JSON.stringify(data.data),
+            booking_date: dayjs().tz("Asia/Jakarta").toISOString(), // ✅ Format ISO-8601 WIB
+            expired: 0,
+            mp_id: data.mp_id
+            // qr: code
+        }
+        console.log("data:", dataToPost);
+        // TODO : enkrip data
+        const a = await prisma.booking.findMany();
+
+        const enkripData = encrypt(JSON.stringify(dataToPost))
+        // // const qrCode = await QRCode.toDataURL(enkripData)
+
+        const db = await prisma.booking.create({
+            data: {
+
+                ...dataToPost,
+                qr_code: enkripData
+                // "created_at" : new Date(),
+                // "updated_at" : new Date(),
+            }
+        })
+        const dbOrder = await prisma.order.create({
+            data: {
+                id: uuidv4(),
+                booking_id: dataToPost.id,
+                link_pay: "",
+                user_id: data.userId,
+                status: 0,
+                total_price: 100000,
+
+            }
+        })
+        // console.log(res)
+        // console.log('ds', db)
+
+        return res.json({
+            status: 200,
+            data: {
+                db
+            }
+        })
     } catch (error) {
         return res.json({
             status: error.status,
