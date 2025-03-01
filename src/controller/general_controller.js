@@ -24,6 +24,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 const crypto = require('crypto')
 const QRCode = require('qrcode')
+const io = require("./sokcer_controller"); // Import Socket.io instance
 
 const getMovies = async (req, res) => {
     console.log("Server Time:", new Date().toString());
@@ -855,6 +856,14 @@ const booking = async (req, res) => {
         })
         // console.log(res)
         // console.log('ds', db)
+        // trigger fungsion pada soket 
+        io.emit("newBooking", {
+            movieName: data.movieName,
+            seats: data.data.map(seat => seat.seatId),
+            user: data.userId,
+            bookingId: db.id,
+            createdAt: dataToPost.booking_date
+        });
 
         return res.json({
             status: 200,
