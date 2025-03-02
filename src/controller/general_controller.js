@@ -552,52 +552,45 @@ const getSeat = async (req, res) => {
             roomId,
             waktuId
         } = req.params;
-        const seat = await prisma.seat.findMany({
+        // 1. Ambil semua kursi yang tersedia berdasarkan roomId
+        const seats = await prisma.seat.findMany({
             where: {
                 room_id: roomId
-            },
+            }
+        });
 
-        })
-        const waktu = await prisma.waktu.findFirst({
-            where: {
-                room_id: roomId,
-                id: waktuId
+        // 2. Ambil semua kursi yang sudah dibooking berdasarkan waktuId
+        const bookedSeats = await prisma.booking.findMany({
+            // where: {
+            //     data: {
+            //         path: '$[*].waktuId',
+            //         equals: waktuId
+            //     }
+            // },
+            select: {
+                data: true
             }
-        })
-        // ambil booking
-        const booking = await prisma.booking.findMany();
-        // const booked = booking.flatMap(item=>JSON.parse(item.data).map(data=>data.waktuId))
-        const bookedSeats = booking
-        .flatMap(item => {
-            try {
-                const parsedData = JSON.parse(item.data);
-                if (!Array.isArray(parsedData)) return []; 
-                return parsedData.map(data => data.seatId); 
-            } catch (error) {
-                console.error("Error parsing booking data:", item.data, error);
-                return [];
-            }
-        })
-        .filter(Boolean);
-        const seatsWithStatus = seat.map(seat => ({
+        });
+
+        // 3. Gunakan Prisma untuk langsung mengekstrak seatId yang dibooking
+        const bookedSeatIds = bookedSeats
+            .flatMap(booking => JSON.parse(booking.data))
+            .filter(seat => seat.waktuId === waktuId)
+            .map(seat => seat.seatId);
+
+        // 4. Gabungkan hasilnya dengan menandai kursi yang sudah dibooking
+        const seatsWithStatus = seats.map(seat => ({
             ...seat,
-            isBooked: bookedSeats.some(bookedId => bookedId === seat.id) 
+            isBooked: bookedSeatIds.includes(seat.id)
         }));
-        console.log("bookedSeat:", bookedSeats); 
-        console.log("Raw Booked Data:", booking.map(b => b.data)); 
-        console.log("Processed Booked Data:", bookedSeats);
-        console.log("Seat IDs in bookedSeats:", bookedSeats.map(s => s));
-        console.log("Seat IDs in seat_status:", seat.map(s => s.id));
 
         return res.json({
             data: {
-                total_seat: seat.length,
-                // seat: seat,
-                waktu: waktu,
-                boking: bookedSeats,
+                roomId,
+                waktuId,
                 seat_status: seatsWithStatus
             }
-        })
+        });
 
     } catch (error) {
         return res.status(404).json({
@@ -805,8 +798,8 @@ const booking = async (req, res) => {
         if (alreadyBookedSeats.length > 0) {
             return res.status(400).json({
                 error: "Some seats are already booked!",
-                bookedSeats: alreadyBookedSeats, 
-                availableSeats: availableSeats, 
+                bookedSeats: alreadyBookedSeats,
+                availableSeats: availableSeats,
             });
         }
         // console.log(requestedSeats)
@@ -831,8 +824,8 @@ const booking = async (req, res) => {
         // TODO : enkrip data
         const a = await prisma.booking.findMany();
 
-        const enkripData = encrypt(JSON.stringify(dataToPost))
         // // const qrCode = await QRCode.toDataURL(enkripData)
+        const enkripData = encrypt(JSON.stringify(dataToPost.id))
 
         const db = await prisma.booking.create({
             data: {
@@ -854,6 +847,7 @@ const booking = async (req, res) => {
 
             }
         })
+
         // console.log(res)
         // console.log('ds', db)
         // trigger fungsion pada soket 
@@ -896,7 +890,26 @@ const scan = async (req, res) => {
     try {
         const scanner = decrypt(data);
         console.log("✅ Hasil decrypt:", scanner);
-
+        const booking = await prisma.booking.findUnique({
+            where: {
+                id: scanner
+            }
+        })
+        if (!booking) {
+            return res.status(404).json({
+                message: "Booking tidak ditemukan"
+            });
+        }
+        const [updatedBooking, updatedOrders] = await prisma.$transaction([
+            prisma.booking.update({
+                where: { id: scanner },
+                data: { expired: 1 } // Ubah status booking
+            }),
+            prisma.order.updateMany({
+                where: { booking_id: scanner },
+                data: { status: 1 } // Ubah status order terkait
+            })
+        ]);
         return res.json({
             data: scanner,
             status: "success",
