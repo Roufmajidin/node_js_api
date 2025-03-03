@@ -10,7 +10,10 @@ const path = require('path');
 
 
 // controller 
-const controller = require('../controller/general_controller')
+const bookingController = require('../controller/booking_controller')
+const movieController = require('../controller/movie_controller')
+const userController = require('../controller/user')
+const scanController = require('../controller/scanner_controller')
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         const uploadPath = path.join(__dirname, '../storage/uploads/');
@@ -21,27 +24,29 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage: storage });
+// TODO : movie routing
+router.get('/movies', movieController.getMovies)
+router.get('/movies/:name', movieController.getMovieName)
+router.get('/seats/:roomId/:waktuId', movieController.getSeat)
+router.put('/nonaktif-studios', movieController.nonAktifstudios)
+router.put('/saveEdit', upload.single('gambar'), movieController.editMovie)
+router.post('/movieadd', upload.single('gambar'), movieController.addMovie)
+router.post('/room/:idroom', movieController.filteringroom)
+router.post('/event', movieController.addEvent)
 
-router.get('/movies', controller.getMovies)
-router.get('/movies/:name', controller.getMovieName)
-router.get('/seats/:roomId/:waktuId', controller.getSeat)
-router.put('/nonaktif-studios', controller.nonAktifstudios)
-router.put('/saveEdit', upload.single('gambar'), controller.editMovie)
-router.post('/movieadd', upload.single('gambar'), controller.addMovie)
-router.post('/room/:idroom', controller.filteringroom)
-router.post('/event', controller.addEvent)
-router.get('/users', controller.getUsers)
-router.get('/users/:id', controller.getUserId)
-router.post('/postBooking', controller.booking)
-// dummy data 
 
-router.get('/getRoom', controller.getRoom)
-router.get('/generate/:id', controller.generateseat)
-router.post('/generate_room/', controller.generateroom)
-router.post('/payment/', controller.generatePayment)
+router.get('/getRoom', movieController.getRoom)
+router.get('/generate/:id', movieController.generateseat)
+router.post('/generate_room/', movieController.generateroom)
+router.post('/payment/', movieController.generatePayment)
+
+// user routing for bboking
+router.get('/users', userController.getUsers)
+router.get('/users/:id', userController.getUserId)
+router.post('/postBooking', bookingController.booking)
 
 // scanner
-router.post('/postScan', controller.scan)
+router.post('/postScan', scanController.scan)
 router.get("/create", async (req, res) => {
     try {
         // const id = Math.floor(Math.random() * 1000000);
