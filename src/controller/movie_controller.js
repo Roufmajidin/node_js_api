@@ -1,31 +1,21 @@
 const express = require('express');
-const {
-    v4: uuidv4
-} = require('uuid');
+const {v4: uuidv4} = require('uuid');
 
-const {
-    PrismaClient
-} = require('@prisma/client');
-const {
-    json
-} = require('body-parser')
+const {PrismaClient} = require('@prisma/client');
+const { json} = require('body-parser')
 require('dotenv').config();
 const prisma = new PrismaClient();
 // TODO : getAll Movies
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
-const {
-    parse
-} = require('dotenv');
+const {parse} = require('dotenv');
 const multer = require('multer');
 const path = require('path')
 dayjs.extend(utc);
 dayjs.extend(timezone);
-const crypto = require('crypto')
-const QRCode = require('qrcode')
-const io = require("./sokcer_controller"); // Import Socket.io instance
 
+// TODO get movies dara
 const getMovies = async (req, res) => {
     console.log("Server Time:", new Date().toString());
 
@@ -65,7 +55,7 @@ const getMovies = async (req, res) => {
     }
 
 }
-// strage config
+// TODO :: strage config
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, "storage/uploads/")
@@ -348,54 +338,8 @@ const generatePayment = async (req, res) => {
     })
 
 }
-// {
-//     "data": {
-//         "movie": {
-//             "id": 2,
-//             "genre": "Sci-Fi",
-//             "judul": "Interstellar",
-//             "durasi": "169",
-//             "showTime": "2025-02-11T21:00:00.000Z",
-//             "created_at": "2025-02-09T02:32:03.000Z",
-//             "updated_at": "2025-02-09T02:32:03.000Z"
-//         },
-//         "waktu": [
-//             {
-//                 "id": 2,
-//                 "time": "2025-02-01T15:30:00.226Z",
-//                 "movie_id": 2,
-//                 "room_id": 1,
-//                 "created_at": "1900-01-27T00:00:00.000Z",
-//                 "updated_at": "1900-01-22T00:00:00.000Z"
-//             },
-//             {
-//                 "id": 4,
-//                 "time": "2025-02-01T07:00:00.226Z",
-//                 "movie_id": 2,
-//                 "room_id": 1,
-//                 "created_at": "1900-01-27T00:00:00.000Z",
-//                 "updated_at": "1900-01-22T00:00:00.000Z"
-//             }
-//         ]
-//     }
-// }
-// const filteringroom = async (req, res) => {
-//     const {idroom} = req.params
-//     const data = req.body.waktu;
-//     const a = await prisma.waktu.findMany({
-//         where: {
-//             // room_id: parseInt(idroom),
-//             time : data.waktu
-//         }
-//     });
-//     console.log(data)
-//     return res.json({
-//         data : a
 
-//     })
-// }
 // TODO : filtering waktu ketika akan dilakukan penambahan waktu pada jam penayangan film
-
 const filteringroom = async (req, res) => {
     try {
         const {
@@ -482,8 +426,6 @@ const filteringroom = async (req, res) => {
         });
     }
 };
-
-
 //TODO :: get seat berdasarkan movie dan waktu terpilihh 
 // misalnya film denan movie_id == xx dan waktu yang tertera pada movie tersebut 
 // get seat where room_id dan waktu (time) oada tabel waktu
@@ -505,11 +447,8 @@ const getRoom = async (req, res) => {
     }));
 
     res.status(200).json(roomsWithSeatStatus);
-
-
-
 }
-// TODO:: add event 
+// TODO : add event 
 const addEvent = async (req, res) => {
     console.log("req.body")
     console.log(req.body)
@@ -610,384 +549,6 @@ const storeSeat = (req, res) => {
     } = req.body;
 
 }
-const getUsers = async (req, res) => {
-    console.log("ok")
-
-
-    try {
-        const user = await prisma.user.findMany();
-        console.log(user)
-        return res.json({
-            status: 200,
-            data: user
-        })
-        user
-    } catch (error) {
-        console.error("Error fetching users:", error.message);
-
-        return res.json({
-            status: 404,
-            // data : 
-        })
-
-    }
-}
-
-// TODO :: fetch booking by user Id, grup berdasarkan waktu booking,
-// TODO : misalnya CO tanggal sekarang dan 2 kursi, 
-// TODO : yaudah nanti formatnya "23-2-2025" : "booking [], 1 qr-code dsb, 
-// TODO karna isi qrcode terdapat gruping (id masing-masing data) yaudah
-// TODO ketika scan update by id masing-masing yang ada digruping data"
-const getUserId = async (req, res) => {
-    const {
-        id
-    } = req.params;
-    try {
-        const user = await prisma.user.findUnique({
-            where: {
-                id: id
-            }
-        })
-        const bookings = await prisma.booking.findMany({
-            where: {
-                user_id: id
-            },
-            include: {
-                order: true
-            }
-            // include: {
-            //     waktu :true
-            // }
-        })
-
-
-        const seatIds = bookings.flatMap(item => JSON.parse(item.data).map(data => data.seatId));
-        const waktuIds = bookings.flatMap(item => JSON.parse(item.data).map(data => data.waktuId));
-
-        const seats = await prisma.seat.findMany({
-            where: {
-                id: {
-                    in: seatIds
-                }
-            }
-        });
-        const waktus = await prisma.waktu.findMany({
-            where: {
-                id: {
-                    in: waktuIds
-                }
-            }
-        });
-        const movieIds = waktus.map(waktu => waktu.movie_id);
-        const movies = await prisma.movie.findMany({
-            where: {
-                id: {
-                    in: movieIds
-                }
-            }
-        });
-        const roomIds = waktus.map(waktu => waktu.room_id)
-
-        const room = await prisma.room.findMany({
-            where: {
-                id: {
-                    in: roomIds
-                }
-            }
-        });
-        const methods = await prisma.method.findMany();
-
-        const resultBooking = bookings.map(item => {
-            const parsedBookings = JSON.parse(item.data);
-
-            return {
-                ...item,
-                method: methods.find(method => method.id === item.mp_id),
-                bookings: parsedBookings.map(data => {
-                    const seatData = seats.find(seat => seat.id === data.seatId);
-                    const waktuData = waktus.find(waktu => waktu.id === data.waktuId);
-                    const roomData = room.find(r => r.id === waktuData.room_id);
-                    const movieData = waktuData ? movies.find(movie => movie.id === waktuData.movie_id) : null;
-                    const roomDatas = roomData ? room.find(room => room.id === roomData.id) : null;
-
-                    return seatData ? {
-                            ...seatData,
-                            waktu: waktuData ? {
-                                ...waktuData,
-                                movie: movieData,
-                                room: roomDatas
-                            } : null
-                        } :
-                        null;
-                }).filter(Boolean)
-            };
-        });
-
-        // console.log('Final Result:', resultBooking);
-
-
-
-        // console.log(seat)
-        return res.json({
-            status: 200,
-            data: resultBooking
-        })
-    } catch (error) {
-        console.error("Error fetching user data:", error);
-        return res.status(404).json({
-            status: 404,
-        })
-
-    }
-
-
-}
-// TODO :  booking
-const booking = async (req, res) => {
-
-    const data = req.body;
-    // console.log(data)
-    const unId = uuidv4()
-    try {
-        const requestedSeats = data.data.map(seat => ({
-            seatId: String(seat.seatId),
-            waktuId: String(seat.waktuId),
-        }));
-        const allBookings = await prisma.booking.findMany();
-        const bookedSeats = allBookings.flatMap(booking => {
-            try {
-                return booking.data ? JSON.parse(booking.data).map(seat => ({
-                    seatId: seat.seatId,
-                    waktuId: seat.waktuId
-                })) : [];
-            } catch (error) {
-                console.error("Error parsing booking data:", booking.data, error);
-                return [];
-            }
-        });
-
-        // Debugging log
-        console.log("Requested Seats:", requestedSeats);
-        console.log("Booked Seats:", bookedSeats);
-
-        const alreadyBookedSeats = [];
-        const availableSeats = [];
-
-        const seatDetail = await prisma.seat.findMany();
-        requestedSeats.forEach(reqSeat => {
-            const isBooked = bookedSeats.some(bookedSeat =>
-                reqSeat.seatId === bookedSeat.seatId && reqSeat.waktuId === bookedSeat.waktuId
-            );
-
-            // const waktuDetail = await prisma.waktu.findMany();
-            if (isBooked) {
-                alreadyBookedSeats.push({
-                    reqSeat,
-                    "data": seatDetail.find(s => s.id === reqSeat.seatId),
-                });
-            } else {
-                availableSeats.push({
-                    reqSeat,
-                    "data": seatDetail.find(s => s.id === reqSeat.seatId),
-                    // "waktu": waktuDetail
-                });
-            }
-        });
-
-        if (alreadyBookedSeats.length > 0) {
-            return res.status(400).json({
-                error: "Some seats are already booked!",
-                bookedSeats: alreadyBookedSeats,
-                availableSeats: availableSeats,
-            });
-        }
-        console.log(requestedSeats)
-        // Jika semua kursi tersedia, lanjutkan booking
-        // return res.json({
-        //     success: true,
-        //     message: "All seats are available!",
-        //     availableSeats
-        // });
-
-
-        const dataToPost = {
-            id: unId,
-            user_id: data.userId,
-            data: JSON.stringify(data.data),
-            booking_date: dayjs().tz("Asia/Jakarta").toISOString(), 
-            expired: 0,
-            mp_id: data.mp_id
-            // qr: code
-        }
-        console.log("data:", dataToPost);
-        // TODO : enkrip data
-        const a = await prisma.booking.findMany();
-
-        // // const qrCode = await QRCode.toDataURL(enkripData)
-        const enkripData = encrypt(JSON.stringify(dataToPost.id))
-        // 
-        const dataIds = data.data.map(data => data.waktuId)
-        const b = await prisma.waktu.findMany({
-            where: {
-                id: {
-                    in: dataIds
-                }
-
-            },
-            include: {
-                movies: true
-            }
-        })
-      
-        const db = await prisma.booking.create({
-            data: {
-
-                ...dataToPost,
-                qr_code: enkripData
-                // "created_at" : new Date(),
-                // "updated_at" : new Date(),
-            }
-        })
-        const hargaM = b.reduce((total, item) => {
-            return total + (item.movies?.harga || 0);  
-        }, 0);
-        const dbOrder = await prisma.order.create({
-            data: {
-                id: uuidv4(),
-                booking_id: dataToPost.id,
-                link_pay: "",
-                user_id: data.userId,
-                status: 0,
-                total_price: hargaM * data.data.length,
-
-            }
-        })
-
-        // console.log(res)
-        // console.log('ds', db)
-        //TODO trigger fungsion pada soket 
-        io.emit("newBooking", {
-            movieName: data.movieName,
-            seats: data.data.map(seat => seat.seatId),
-            user: data.userId,
-            bookingId: db.id,
-            createdAt: dataToPost.booking_date
-        });
-
-        return res.json({
-            status: 200,
-            data: {
-                db
-                // movie: harga
-                // harga : harga
-            }
-        })
-    } catch (error) {
-        return res.json({
-            status: error.status,
-            data: [],
-            error: error.message
-        })
-
-    }
-
-}
-const scan = async (req, res) => {
-    const {
-        data
-    } = req.body;
-    console.log("hallo")
-    if (!data || typeof data !== 'string' || !data.includes(':')) {
-        return res.status(400).json({
-            status: "error",
-            message: "Format data salah!"
-        });
-    }
-
-    try {
-        const scanner = decrypt(data);
-        console.log("✅ Hasil decrypt:", scanner);
-        const booking = await prisma.booking.findUnique({
-            where: {
-                id: scanner
-            }
-        })
-        if (!booking) {
-            return res.status(404).json({
-                message: "Booking tidak ditemukan"
-            });
-        }
-        const [updatedBooking, updatedOrders] = await prisma.$transaction([
-            prisma.booking.update({
-                where: {
-                    id: scanner
-                },
-                data: {
-                    expired: 1
-                } // Ubah status booking
-            }),
-            prisma.order.updateMany({
-                where: {
-                    booking_id: scanner
-                },
-                data: {
-                    status: 1
-                } TODO:// Ubah status order terkait
-            })
-        ]);
-        return res.json({
-            data: scanner,
-            status: "success",
-        });
-    } catch (error) {
-        console.error("❌ Error saat dekripsi:", error.message);
-        return res.status(500).json({
-            status: "error",
-            message: "Gagal mendekripsi data!",
-        });
-    }
-}
-// TODO ::etc function
-const algorithm = process.env.ALGORITHM;
-const secretKey = crypto.createHash('sha256').update(process.env.SECRET_KEY).digest();
-
-function encrypt(text) {
-    try {
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipheriv(algorithm, secretKey, iv);
-        const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-
-        const encryptedText = iv.toString('hex') + ':' + encrypted.toString('hex');
-
-        console.log("🔒 Encrypted Data:", encryptedText);
-        return encryptedText;
-    } catch (error) {
-        console.error("❌ Error saat enkripsi:", error.message);
-        return null;
-    }
-}
-
-function decrypt(text) {
-    try {
-        const parts = text.split(':');
-        if (parts.length !== 2) throw new Error("Format terenkripsi tidak valid!");
-
-        const iv = Buffer.from(parts[0], 'hex');
-        const encryptedText = Buffer.from(parts[1], 'hex');
-        const decipher = crypto.createDecipheriv(algorithm, secretKey, iv);
-        const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
-        const jsonData = JSON.parse(decrypted.toString());
-
-        console.log("Decrypted Data:", decrypted.toString());
-        return jsonData;
-    } catch (error) {
-        console.error("Error saat dekripsi:", error.message);
-        return null;
-    }
-}
-
-
-
 module.exports = {
 
     getMovies,
@@ -1000,11 +561,9 @@ module.exports = {
     addMovie,
     filteringroom,
     addEvent,
-    getUsers,
-    getUserId,
-    booking,
-    scan,
     generateroom,
-    generatePayment
+    generatePayment, 
+    getRoom,
+    filteringroom,
 
 }
