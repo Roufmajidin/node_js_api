@@ -29,7 +29,6 @@ const io = require("./sokcer_controller"); // Import Socket.io instance
 const getMovies = async (req, res) => {
     console.log("Server Time:", new Date().toString());
 
-    console.log('ok')
     try {
         const movies = await prisma.movie.findMany({
             include: {
@@ -240,7 +239,7 @@ const getMovieName = async (req, res) => {
             }
         })
 
-        console.log((waktu))
+        // console.log((waktu))
         res.json({
             data: {
                 movie: a,
@@ -724,7 +723,7 @@ const getUserId = async (req, res) => {
             };
         });
 
-        console.log('Final Result:', resultBooking);
+        // console.log('Final Result:', resultBooking);
 
 
 
@@ -802,8 +801,8 @@ const booking = async (req, res) => {
                 availableSeats: availableSeats,
             });
         }
-        // console.log(requestedSeats)
-        // // Jika semua kursi tersedia, lanjutkan booking
+        console.log(requestedSeats)
+        // Jika semua kursi tersedia, lanjutkan booking
         // return res.json({
         //     success: true,
         //     message: "All seats are available!",
@@ -815,7 +814,7 @@ const booking = async (req, res) => {
             id: unId,
             user_id: data.userId,
             data: JSON.stringify(data.data),
-            booking_date: dayjs().tz("Asia/Jakarta").toISOString(), // ✅ Format ISO-8601 WIB
+            booking_date: dayjs().tz("Asia/Jakarta").toISOString(), 
             expired: 0,
             mp_id: data.mp_id
             // qr: code
@@ -826,7 +825,20 @@ const booking = async (req, res) => {
 
         // // const qrCode = await QRCode.toDataURL(enkripData)
         const enkripData = encrypt(JSON.stringify(dataToPost.id))
+        // 
+        const dataIds = data.data.map(data => data.waktuId)
+        const b = await prisma.waktu.findMany({
+            where: {
+                id: {
+                    in: dataIds
+                }
 
+            },
+            include: {
+                movies: true
+            }
+        })
+      
         const db = await prisma.booking.create({
             data: {
 
@@ -836,6 +848,9 @@ const booking = async (req, res) => {
                 // "updated_at" : new Date(),
             }
         })
+        const hargaM = b.reduce((total, item) => {
+            return total + (item.movies?.harga || 0);  
+        }, 0);
         const dbOrder = await prisma.order.create({
             data: {
                 id: uuidv4(),
@@ -843,14 +858,14 @@ const booking = async (req, res) => {
                 link_pay: "",
                 user_id: data.userId,
                 status: 0,
-                total_price: 100000,
+                total_price: hargaM * data.data.length,
 
             }
         })
 
         // console.log(res)
         // console.log('ds', db)
-        // trigger fungsion pada soket 
+        //TODO trigger fungsion pada soket 
         io.emit("newBooking", {
             movieName: data.movieName,
             seats: data.data.map(seat => seat.seatId),
@@ -863,6 +878,8 @@ const booking = async (req, res) => {
             status: 200,
             data: {
                 db
+                // movie: harga
+                // harga : harga
             }
         })
     } catch (error) {
@@ -902,12 +919,20 @@ const scan = async (req, res) => {
         }
         const [updatedBooking, updatedOrders] = await prisma.$transaction([
             prisma.booking.update({
-                where: { id: scanner },
-                data: { expired: 1 } // Ubah status booking
+                where: {
+                    id: scanner
+                },
+                data: {
+                    expired: 1
+                } // Ubah status booking
             }),
             prisma.order.updateMany({
-                where: { booking_id: scanner },
-                data: { status: 1 } // Ubah status order terkait
+                where: {
+                    booking_id: scanner
+                },
+                data: {
+                    status: 1
+                } TODO:// Ubah status order terkait
             })
         ]);
         return res.json({
