@@ -1,15 +1,23 @@
 const express = require('express');
-const {v4: uuidv4} = require('uuid');
+const {
+    v4: uuidv4
+} = require('uuid');
 
-const {PrismaClient} = require('@prisma/client');
-const { json} = require('body-parser')
+const {
+    PrismaClient
+} = require('@prisma/client');
+const {
+    json
+} = require('body-parser')
 require('dotenv').config();
 const prisma = new PrismaClient();
 // TODO : getAll Movies
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
-const {parse} = require('dotenv');
+const {
+    parse
+} = require('dotenv');
 const multer = require('multer');
 const path = require('path')
 dayjs.extend(utc);
@@ -17,10 +25,18 @@ dayjs.extend(timezone);
 
 // TODO get movies dara
 const getMovies = async (req, res) => {
-    console.log("Server Time:", new Date().toString());
-
+    // console.log("Server Time:", new Date().toString());
+    let { page, limit } = req.query;
     try {
+        page = parseInt(page) || 1;
+        limit = parseInt(limit) || 5
+        const skip = (page - 1) * limit
+
+        // ttl movie 
+        const totalMovies = await prisma.movie.count();
         const movies = await prisma.movie.findMany({
+            skip: skip,
+            take: limit,
             include: {
                 waktu: {
                     include: {
@@ -45,8 +61,13 @@ const getMovies = async (req, res) => {
                 status: waktuItem.status,
             }))
         }));
-
-        res.json(formattedMovies);
+        console.log("mov:", formattedMovies)
+        res.json({
+            current_page: page,
+            total_pages: Math.ceil(totalMovies / limit),
+            totalMovies,
+            movies: formattedMovies
+        });
     } catch (error) {
         console.error(error);
         res.status(400).json({
@@ -562,7 +583,7 @@ module.exports = {
     filteringroom,
     addEvent,
     generateroom,
-    generatePayment, 
+    generatePayment,
     getRoom,
     filteringroom,
 

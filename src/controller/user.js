@@ -1,5 +1,7 @@
 // const express = require('express');
-const {geti} = require('../models/user_model');
+const {
+    geti
+} = require('../models/user_model');
 const {
     validationResult
 } = require('express-validator');
@@ -12,7 +14,9 @@ const {
     json
 } = require('body-parser');
 const prisma = new PrismaClient();
-const { v4: uuidv4 } = require('uuid');
+const {
+    v4: uuidv4
+} = require('uuid');
 
 
 // register user
@@ -150,7 +154,9 @@ const addMahasiswa = async (req, res, next) => {
 }
 const getMahasiwa = async (req, res) => {
 
-    const {id} = req.params;
+    const {
+        id
+    } = req.params;
     // console.log(id)
     const user = await prisma.user.findUnique({
         where: {
@@ -160,9 +166,9 @@ const getMahasiwa = async (req, res) => {
             mahasiswa: true
         }
     });
-    if(!user){
+    if (!user) {
         return res.status(404).json({
-            message : "user tidak ditemukan"
+            message: "user tidak ditemukan"
         })
     }
     return res.json({
@@ -171,17 +177,24 @@ const getMahasiwa = async (req, res) => {
 }
 
 const getUsers = async (req, res) => {
-    console.log("ok")
 
-
+    let { page,limit } = req.query
     try {
-        const user = await prisma.user.findMany();
+        const totalUser = await prisma.user.count();
+        page = parseInt(page) || 1;
+        limit = parseInt(limit) || 5;
+        const skip = (page - 1) * limit
+        const user = await prisma.user.findMany({
+            skip: skip,
+            take: limit
+        });
         console.log(user)
         return res.json({
+            current_page: page,
+            total_pages: Math.ceil(totalUser / limit),
             status: 200,
             data: user
         })
-        user
     } catch (error) {
         console.error("Error fetching users:", error.message);
 
@@ -302,8 +315,8 @@ const getUserId = async (req, res) => {
 module.exports = {
     register,
     addMahasiswa,
-    getMahasiwa, 
-    getUsers, 
+    getMahasiwa,
+    getUsers,
     getUserId
 
 }
