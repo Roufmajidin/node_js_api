@@ -26,7 +26,10 @@ dayjs.extend(timezone);
 // TODO get movies dara
 const getMovies = async (req, res) => {
     // console.log("Server Time:", new Date().toString());
-    let { page, limit } = req.query;
+    let {
+        page,
+        limit
+    } = req.query;
     try {
         page = parseInt(page) || 1;
         limit = parseInt(limit) || 5
@@ -570,9 +573,87 @@ const storeSeat = (req, res) => {
     } = req.body;
 
 }
+const getStatistic = async (req, res) => {
+    const id = req.params.id;
+    // get movie 
+    const movie = await prisma.movie.findUnique({
+        where: {
+            id: id,
+        }
+    })
+    // get waktu masingmasing movie 
+    const timeMovieId = await prisma.waktu.findMany({
+        where: {
+            movie_id: id
+        }
+    })
+    // 
+    const booking = await prisma.booking.findMany()
+    console.log(booking);
+
+    const a = booking.map(b => b.id)
+
+    // TODO 1 pluck masing masing id nya
+    const timewIds = timeMovieId.map(t => t.id)
+
+    // TODO 2 mapping objek id 
+    const timeMapping = Object.fromEntries(timeMovieId.map(t => [t.id, t]))
+    console.log("Waktu Film:", timewIds);
+
+    // TODO 3 normalin jadi JSON pada field id
+    const bb = booking.map(b => {
+            try {
+                const parsed = JSON.parse(b.data)
+                console.log("Parsed Booking Data:", b.id);
+
+                return parsed.map(seat => ({
+                    booking_id: b.id,
+                    seatId: seat.seatId,
+                    waktuId: seat.waktuId,
+                    waktu: timeMapping[seat.waktuId] || {}
+                }));
+            } catch (error) {
+                return null
+
+            }
+        }).flat()
+        .filter(f => f && f.waktuId && timewIds.includes(f.waktuId));
+
+    // TODO 4 gruping berdasarkan waktu pada jam tayang movie
+    const groupedBookings = bb.reduce((acc, b) => {
+        const tanggal = new Date(b.waktu.time).toISOString().split("T")[0];
+
+        if (!acc[tanggal]) {
+            acc[tanggal] = {
+                tanggal,
+                jumlah_booking: 0,
+                bookings: []
+            };
+        }
+
+        acc[tanggal].jumlah_booking += 1;
+        acc[tanggal].bookings.push(b);
+
+        return acc;
+    }, {});
+
+    const result = Object.values(groupedBookings);
+
+
+
+    // .filter(f => f && timewIds.includes(f))
+    return res.json({
+        movie: movie.judul,
+        time: timewIds,
+        seat_booked: result,
+        booking: bb,
+        jumlah_b: bb.length
+    })
+}
 module.exports = {
 
     getMovies,
+    getStatistic,
     getMovieName,
     getSeat,
     generateseat,

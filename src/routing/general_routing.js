@@ -33,7 +33,7 @@ router.put('/saveEdit', upload.single('gambar'), movieController.editMovie)
 router.post('/movieadd', upload.single('gambar'), movieController.addMovie)
 router.post('/room/:idroom', movieController.filteringroom)
 router.post('/event', movieController.addEvent)
-
+router.get('/statistics/:id', movieController.getStatistic)
 
 router.get('/getRoom', movieController.getRoom)
 router.get('/generate/:id', movieController.generateseat)
