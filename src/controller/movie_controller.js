@@ -599,7 +599,9 @@ const getStatistic = async (req, res) => {
     // TODO 2 mapping objek id 
     const timeMapping = Object.fromEntries(timeMovieId.map(t => [t.id, t]))
     console.log("Waktu Film:", timewIds);
-
+    const seats = await prisma.seat.findMany()
+    const orders = await prisma.order.findMany()
+    const users = await prisma.user.findMany()
     // TODO 3 normalin jadi JSON pada field id
     const bb = booking.map(b => {
             try {
@@ -608,7 +610,14 @@ const getStatistic = async (req, res) => {
 
                 return parsed.map(seat => ({
                     booking_id: b.id,
-                    seatId: seat.seatId,
+                    order: {
+                        user: users.find(u => u.id == b.user_id),
+                        orders: orders.find(o => o.booking_id == b.id)
+                    },
+                    seat: {
+                        seatId: seat.seatId,
+                        seat: seats.find(a => a.id == seat.seatId)
+                    },
                     waktuId: seat.waktuId,
                     waktu: timeMapping[seat.waktuId] || {}
                 }));
@@ -643,6 +652,7 @@ const getStatistic = async (req, res) => {
 
     // .filter(f => f && timewIds.includes(f))
     return res.json({
+        datas_movie: movie,
         movie: movie.judul,
         time: timewIds,
         seat_booked: result,
