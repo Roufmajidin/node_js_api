@@ -17,7 +17,7 @@ const prisma = new PrismaClient();
 const {
     v4: uuidv4
 } = require('uuid');
-
+const jwt = require('jsonwebtoken')
 
 // register user
 const register = (req, res) => {
@@ -178,7 +178,10 @@ const getMahasiwa = async (req, res) => {
 
 const getUsers = async (req, res) => {
 
-    let { page,limit } = req.query
+    let {
+        page,
+        limit
+    } = req.query
     try {
         const totalUser = await prisma.user.count();
         page = parseInt(page) || 1;
@@ -311,13 +314,69 @@ const getUserId = async (req, res) => {
     }
 
 
+
+}
+// login 
+const login = async (req, res) => {
+    const {
+        email,
+        password
+    } = req.body;
+    try {
+        const user = await prisma.user.findUnique({
+            where: {
+                email
+            }
+        })
+        if (!user) {
+            return res.status(400).json({
+                error: "invalid email or password"
+            })
+        }
+        // cek
+        const match = await bcrypt.compare(password, user.password)
+        if (!match) {
+            return res.satus(400).json({
+                errror: "invalid email or password"
+            })
+        }
+        // generate token
+        const token = jwt.sign({
+            userId: user.id
+        }, process.env.SECRET_KEY, {
+            expiresIn: "1h"
+        })
+        // update lstlogin  
+        const updateLastLogin = await prisma.user.update({
+            where: {
+                email
+            },
+            data: {
+                last_login: new Date()
+            }
+        })
+
+        res.json({
+            token,
+            user: updateLastLogin
+        })
+
+    } catch (error) {
+        res.status(500).json({
+            message: "ada keasalahan"
+        })
+
+    }
+
+
 }
 module.exports = {
     register,
     addMahasiswa,
     getMahasiwa,
     getUsers,
-    getUserId
+    getUserId,
+    login
 
 }
 
