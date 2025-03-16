@@ -14,6 +14,7 @@ const bookingController = require('../controller/booking_controller')
 const movieController = require('../controller/movie_controller')
 const userController = require('../controller/user')
 const scanController = require('../controller/scanner_controller')
+const userMiddleware = require('../middleware/user_middleware')
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         const uploadPath = path.join(__dirname, '../storage/uploads/');
@@ -23,7 +24,9 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + '-' + file.originalname);
     }
 });
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage
+});
 // TODO : movie routing
 router.get('/movies', movieController.getMovies)
 router.get('/movies/:name', movieController.getMovieName)
@@ -43,7 +46,8 @@ router.post('/payment/', movieController.generatePayment)
 // user routing for bboking
 router.get('/users', userController.getUsers)
 router.get('/users/:id', userController.getUserId)
-router.post('/postBooking', bookingController.booking)
+// add autentikasi jwt for booking
+router.post('/postBooking', userMiddleware.authenticateToken, bookingController.booking)
 
 // scanner
 router.post('/postScan', scanController.scan)
