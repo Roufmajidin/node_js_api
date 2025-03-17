@@ -27,6 +27,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage
 });
+// TODO::protek di general url
 // TODO : movie routing
 router.get('/movies', movieController.getMovies)
 router.get('/movies/:name', movieController.getMovieName)

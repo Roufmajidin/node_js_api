@@ -370,13 +370,21 @@ const login = async (req, res) => {
 
 
 }
+const protected = (req, res)=>{
+    return res.json({
+        message:"protected data",
+        user : req.user
+    })
+
+}
 module.exports = {
     register,
     addMahasiswa,
     getMahasiwa,
     getUsers,
     getUserId,
-    login
+    login, 
+    protected
 
 }
 
